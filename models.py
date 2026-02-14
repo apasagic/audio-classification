@@ -17,11 +17,15 @@ class modelNN:
             model_CNN = Sequential([
             Input(shape=(None, 1025)),   # (time, features)
 
-           #Conv1D(512, kernel_size=7, padding="same", activation="relu"),
-           #Dropout(0.1),
+            #Conv1D(128, kernel_size=5, padding="same", activation="relu"),
+            #Dropout(0.3),
+
+            #Conv1D(64, kernel_size=3, padding="same", activation="relu"),
+
+            #Dense(5, activation="softmax")   # per-frame prediction
            
-           Conv1D(256, kernel_size=5, padding="same", activation="linear", use_bias=True,data_format="channels_last"),
-           Dropout(0.1),
+            Conv1D(256, kernel_size=5, padding="same", activation="linear", use_bias=True,data_format="channels_last"),
+            Dropout(0.1),
 
             Conv1D(128, kernel_size=5, padding="same", activation="linear", use_bias=True,data_format="channels_last"),
             Dropout(0.1),
