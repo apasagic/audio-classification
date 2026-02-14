@@ -18,7 +18,7 @@ def compute_stft(audio, n_fft=2048, hop_length=512, win_length=2048):
     stft = stft.astype(np.float32)
     magnitude, phase = librosa.magphase(stft)
     magnitude_db = librosa.amplitude_to_db(np.abs(magnitude), ref=np.max)
-    return stft, phase
+    return magnitude_db, phase
 
 
 def plot_spectrogram(magnitude_db, sr, hop_length, title='Spectrogram'):
@@ -40,8 +40,7 @@ def load_wav_data(directory):
 
             file_path = os.path.join(root, file)
             audio, sr = load_audio_file(file_path)
-            stft, phase = compute_stft(audio, n_fft=2048)
-            magnitude_db = librosa.amplitude_to_db(np.abs(stft), ref=np.max)
+            magnitude_db, phase = compute_stft(audio[:8000], n_fft=2048)
             data.append(magnitude_db)
             # Get a label Y from a file name
             label = os.path.basename(os.path.dirname(file_path))  # Assuming each subdirectory represents a class            
@@ -79,7 +78,7 @@ def generate_time_windows(audio_array, labels, window_size, max_length, sr):
       sample_label = labels[audio_sample_ind]
       labels_chunks.extend([sample_label] * audio_sample.shape[1])
 
-      silence_window = -80*np.ones((audio_array.shape[1], random.randint(0, 20)))
+      silence_window = -80*np.ones((audio_array.shape[1], random.randint(0, 2)))
       chunks.append(silence_window)
       labels_chunks.extend(['None'] * silence_window.shape[1])
 
@@ -100,9 +99,13 @@ def generate_time_windows(audio_array, labels, window_size, max_length, sr):
 
    n_windows = windows.shape[1]//window_size
 
-   windows_trimmed = windows[:,:window_size * n_windows].T.reshape(-1, window_size, audio_array.shape[1])
-   windows_trimmed = np.transpose(windows_trimmed, (0, 2, 1))
-   labels_trimmed = labels[:window_size * n_windows].reshape(n_windows, window_size)
+   if(n_windows != 0):
+      windows_trimmed = windows[:,:window_size * n_windows].T.reshape(-1, window_size, audio_array.shape[1])
+      windows_trimmed = np.transpose(windows_trimmed, (0, 2, 1))
+      labels_trimmed = labels[:window_size * n_windows].reshape(n_windows, window_size)
+   else:
+      windows_trimmed = windows.T.reshape(1, windows.shape[1], windows.shape[0])
+      labels_trimmed = labels.reshape(1, labels.shape[0])
 
    windows = windows.astype(np.float32)
 
@@ -111,6 +114,10 @@ def generate_time_windows(audio_array, labels, window_size, max_length, sr):
    # windows=windows_trimmed,
    # labels=labels_trimmed
    #)
+
+   mean = np.mean(windows_trimmed, axis=(0, 2), keepdims=True)
+   std = np.std(windows_trimmed, axis=(0, 2), keepdims=True) + 1e-8
+   windows_trimmed = (windows_trimmed - mean) / std
 
    return windows_trimmed, labels_trimmed
    

@@ -7,14 +7,13 @@ import librosa.display
 import os
 import random
 import utils
+import models
 
 from tensorflow.keras.callbacks import ModelCheckpoint
-
-from keras.models import Sequential
-from keras.layers import LSTM, SimpleRNN, Dense, Bidirectional, Dropout, TimeDistributed, Activation, Input, Reshape, Lambda, RepeatVector
-from keras.optimizers import Adam
 from keras.callbacks import EarlyStopping
 
+
+CREATE_WINDOWS = True
 
 # Define constants
 #SR = 22050
@@ -27,56 +26,74 @@ directory = 'Drum_samples'
 audio_array, labels = utils.load_wav_data(directory)
 audio_array = np.array(audio_array)
 
-windows, labels = utils.generate_time_windows(audio_array, labels, window_size = 435, max_length = 10000, sr = 22050)
-
-labels_one_hot = utils.create_one_hot_encoder_batch(labels)
-
-# Create input output tensors
-X_train = windows[:int(0.8*len(windows)),:,:]
-Y_train = labels_one_hot[:int(0.8*len(labels_one_hot)),:,:]
-
-X_val = windows[int(0.8*len(windows)):,:,:]
-Y_val = labels_one_hot[int(0.8*len(labels_one_hot)):,:,:]
-
-# Print shape of Input/Output vector for training for check
-print(X_train.shape)
-print(Y_train.shape)
-#print(X_val.shape)
-#print(Y_val.shape)
 # Use the same encoder to transform the test data
 #y_test_OH = encoder.transform(np.array(y_test).reshape(-1, 1))
 
+# ---- Callbacks ----
 checkpoint = ModelCheckpoint(
-    "best_model.keras",
+    "best_cnn_model.keras",
     monitor="val_loss",
     save_best_only=True,
     verbose=1
-) 
-
-# Early stop is used to make sure model is not overfitting. If 'val_loss' is not improved within 10 epochs (patience=10), the training is automaticlly stopped.
-early = EarlyStopping(monitor='val_loss', min_delta=0, patience=15, verbose=1, mode='auto')
-
-
-model_FF = Sequential([
-    Input(shape=(None, 1025)),      # (time, features)
-    Dense(1025, activation='relu'),
-    Dense(512, activation='relu'),
-    Dense(5, activation='softmax')  # per-frame prediction
-])
-
-model_FF.compile(
-    optimizer=Adam(learning_rate=5e-4),
-    loss="categorical_crossentropy",
-    metrics=["accuracy"]
 )
 
-model_FF.summary()
+early = EarlyStopping(
+    monitor="val_loss",
+    patience=15,
+    restore_best_weights=True,   # IMPORTANT
+    verbose=1
+)
 
-model_FF.fit(
-    X_train.transpose((0,2,1)),
+model = models.modelNN(model_type='1D_CNN')
+
+if(CREATE_WINDOWS):
+   windows, labels = utils.generate_time_windows(audio_array, labels, window_size = 150, max_length = 800, sr = 22050)
+else:
+   data = np.load("generated_windows.npz", allow_pickle=True)
+   windows = data["windows"]      # shape: (N, 435, 1025)
+   labels  = data["labels"]       # shape: (N, 435)
+
+labels_one_hot = utils.create_one_hot_encoder_batch(labels)
+
+
+if(windows.shape[0]!=1):
+   
+  # Create input output tensors
+  X_train = windows[:int(0.8*windows.shape[0]),:,:]
+  Y_train = labels_one_hot[:int(0.8*windows.shape[0]),:,:]
+
+  X_val = windows[int(0.8*windows.shape[0]):,:,:]
+  Y_val = labels_one_hot[int(0.8*windows.shape[0]):,:,:]
+
+  # Print shape of Input/Output vector for training for check
+  X_train = X_train.transpose((0,2,1))  # (N, features, time) -> (N, time, features)
+  X_val = X_val.transpose((0,2,1))      # (N, features, time) -> (N, time, features)
+
+else:
+   
+  # Create input output tensors
+  X_train = windows[:,:int(0.8*windows.shape[1]),:]
+  Y_train = labels_one_hot[:,:int(0.8*windows.shape[1]),:]
+
+  X_val = windows[:,int(0.8*windows.shape[1]):,:]
+  Y_val = labels_one_hot[:,int(0.8*windows.shape[1]):,:]
+
+  # Print shape of Input/Output vector for training for check
+#  X_train = X_train.transpose((0,2,1))  # (N, features, time) -> (N, time, features)
+#  X_val = X_val.transpose((0,2,1))      # (N, features, time) -> (N, time, features)
+
+print(X_train.shape)
+print(Y_train.shape)
+print(X_val.shape)
+print(Y_val.shape)
+
+model.model.fit(
+    X_train,
     Y_train,
-    batch_size=X_train.shape[0],   # IMPORTANT: now you actually have batches
-    epochs=2500
+    validation_data=(X_val, Y_val),
+    batch_size=16,
+    epochs=1500,
+    callbacks=[early, checkpoint]
 )
 
 print("Evaluating on validation set:")
