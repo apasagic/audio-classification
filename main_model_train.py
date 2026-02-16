@@ -9,9 +9,12 @@ import random
 import utils
 import models
 
+from utils import load_audio_file, compute_stft, plot_spectrogram, check_model_predictions, load_wav_data, create_one_hot_encoder_batch, generate_time_windows
+
 from tensorflow.keras.callbacks import ModelCheckpoint
 from keras.callbacks import EarlyStopping
 
+from augumentations import add_background_noise
 
 CREATE_WINDOWS = True
 
@@ -23,7 +26,7 @@ HOP_SIZE = 0.05  # in seconds (50 ms)
 N_FFT = 2048
 
 directory = 'Drum_samples'
-audio_array, labels = utils.load_wav_data(directory)
+audio_array, labels = load_wav_data(directory)
 audio_array = np.array(audio_array)
 
 # Use the same encoder to transform the test data
@@ -44,56 +47,66 @@ early = EarlyStopping(
     verbose=1
 )
 
-model = models.modelNN(model_type='1D_CNN')
-
 if(CREATE_WINDOWS):
-   windows, labels = utils.generate_time_windows(audio_array, labels, window_size = 150, max_length = 800, sr = 22050)
-else:
-   data = np.load("generated_windows.npz", allow_pickle=True)
-   windows = data["windows"]      # shape: (N, 435, 1025)
-   labels  = data["labels"]       # shape: (N, 435)
-
-labels_one_hot = utils.create_one_hot_encoder_batch(labels)
-
-
-if(windows.shape[0]!=1):
    
-  # Create input output tensors
-  X_train = windows[:int(0.8*windows.shape[0]),:,:]
-  Y_train = labels_one_hot[:int(0.8*windows.shape[0]),:,:]
+  #windows, labels, norm_params = generate_time_windows(audio_array, labels, window_size = 150, max_length = 2500, sr = 22050, add_augumentation=True)
+  windows_train, labels_train, norm_params = generate_time_windows(audio_array[0:int(0.8*len(audio_array))], labels, window_size = 150, max_length = 2500, sr = 22050, add_augumentation=True)
+  add_background_noise(windows_train, path_to_noise="background-sounds")
+  windows_val, labels_val, _ = generate_time_windows(audio_array[int(0.8*len(audio_array)):], labels, window_size = 150, max_length = 800, sr = 22050, add_augumentation=False)
 
-  X_val = windows[int(0.8*windows.shape[0]):,:,:]
-  Y_val = labels_one_hot[int(0.8*windows.shape[0]):,:,:]
+  Y_train, encoder = create_one_hot_encoder_batch(labels_train)
+  Y_val = encoder.transform(np.array(labels_val).reshape(-1, 1))
+  Y_val = Y_val.reshape(labels_val.shape[0], labels_val.shape[1], -1)
 
   # Print shape of Input/Output vector for training for check
-  X_train = X_train.transpose((0,2,1))  # (N, features, time) -> (N, time, features)
-  X_val = X_val.transpose((0,2,1))      # (N, features, time) -> (N, time, features)
+  X_train = windows_train.transpose((0,2,1))  # (N, features, time) -> (N, time, features)
+  X_val = windows_val.transpose((0,2,1))      # (N, features, time) -> (N, time, features)
+
+  #np.savez_compressed(
+  #  "generated_windows.npz",
+  #  X_train=X_train,
+  #  Y_train=Y_train,
+  #  X_val=X_val,
+  #  Y_val=Y_val,
+  #  encoder=encoder,
+  #  norm_params=norm_params
+  #)
 
 else:
-   
-  # Create input output tensors
-  X_train = windows[:,:int(0.8*windows.shape[1]),:]
-  Y_train = labels_one_hot[:,:int(0.8*windows.shape[1]),:]
 
-  X_val = windows[:,int(0.8*windows.shape[1]):,:]
-  Y_val = labels_one_hot[:,int(0.8*windows.shape[1]):,:]
+  data = np.load("generated_windows.npz", allow_pickle=True)
+  X_train = data["X_train"]
+  Y_train = data["Y_train"]
+  X_val = data["X_val"]
+  Y_val = data["Y_val"]
+  encoder = data["encoder"].item()
+  norm_params = data["norm_params"]
 
-  # Print shape of Input/Output vector for training for check
-#  X_train = X_train.transpose((0,2,1))  # (N, features, time) -> (N, time, features)
-#  X_val = X_val.transpose((0,2,1))      # (N, features, time) -> (N, time, features)
-
-print(X_train.shape)
-print(Y_train.shape)
-print(X_val.shape)
-print(Y_val.shape)
+model = models.modelNN(model_type='1D_CNN',out_dim=Y_train.shape[2])
 
 model.model.fit(
     X_train,
     Y_train,
     validation_data=(X_val, Y_val),
     batch_size=16,
-    epochs=1500,
+    epochs=250  ,
     callbacks=[early, checkpoint]
 )
 
 print("Evaluating on validation set:")
+
+predictions = model.model.predict(X_val[0:1,:,:])
+class_names = encoder.inverse_transform(predictions[0,:,:])
+check_model_predictions(model.model, X_val[0:1,:,:], class_names[:,0])
+
+audio, _ = load_audio_file("audio2.ogg")
+magnitude_db, _ = compute_stft(audio, n_fft=N_FFT)
+magnitude_db = magnitude_db.T  # (time, features)
+magnitude_db = magnitude_db.astype(np.float32)
+  # Normalize using training parameters
+magnitude_db = np.expand_dims(magnitude_db, axis=0)  # Add batch dimension
+magnitude_db = (magnitude_db - norm_params[0].transpose(0,2,1)) / norm_params[1].transpose(0,2,1)
+predictions = model.model.predict(magnitude_db)
+predicted_classes = encoder.inverse_transform(predictions[0])
+check_model_predictions(model.model, magnitude_db, predicted_classes[:,0])
+print(f"Predicted classes for audio2.ogg: {predicted_classes[:,0]}")

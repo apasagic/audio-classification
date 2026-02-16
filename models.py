@@ -10,7 +10,7 @@ from keras.layers import Conv1D, Conv2D, MaxPooling2D, Dense, Dropout, Input, Fl
 from keras.optimizers import Adam
 
 class modelNN:
-    def __init__(self,model_type):
+    def __init__(self,model_type,out_dim=5):
         # ---- Model Init ----
         if(model_type=='1D_CNN'):
 
@@ -24,15 +24,15 @@ class modelNN:
 
             #Dense(5, activation="softmax")   # per-frame prediction
            
-            Conv1D(256, kernel_size=5, padding="same", activation="linear", use_bias=True,data_format="channels_last"),
+            Conv1D(256, kernel_size=7, padding="same", activation="relu", use_bias=True,data_format="channels_last"),
             Dropout(0.1),
 
-            Conv1D(128, kernel_size=5, padding="same", activation="linear", use_bias=True,data_format="channels_last"),
+            Conv1D(128, kernel_size=5, padding="same", activation="relu", use_bias=True,data_format="channels_last"),
             Dropout(0.1),
 
-            Conv1D(64, kernel_size=3, padding="same", activation="linear", use_bias=True,data_format="channels_last"),
+            Conv1D(64, kernel_size=3, padding="same", activation="relu", use_bias=True,data_format="channels_last"),
 
-            Dense(5, activation="softmax")   # per-frame prediction
+            Dense(4, activation="softmax")   # per-frame prediction
             ])
 
             model_CNN.compile(
