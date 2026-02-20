@@ -14,7 +14,7 @@ from utils import load_audio_file, compute_stft, plot_spectrogram, check_model_p
 from tensorflow.keras.callbacks import ModelCheckpoint
 from keras.callbacks import EarlyStopping
 
-from augumentations import add_background_noise
+from augmentations import add_background_noise
 
 CREATE_WINDOWS = True
 
@@ -51,7 +51,7 @@ if(CREATE_WINDOWS):
    
   #windows, labels, norm_params = generate_time_windows(audio_array, labels, window_size = 150, max_length = 2500, sr = 22050, add_augumentation=True)
   windows_train, labels_train, norm_params = generate_time_windows(audio_array[0:int(0.8*len(audio_array))], labels, window_size = 150, max_length = 2500, sr = 22050, add_augumentation=True)
-  add_background_noise(windows_train, path_to_noise="background-sounds")
+  windows_train = add_background_noise(windows_train, path_to_noise="background-sounds\\background-room.wav",norm_params=norm_params)
   windows_val, labels_val, _ = generate_time_windows(audio_array[int(0.8*len(audio_array)):], labels, window_size = 150, max_length = 800, sr = 22050, add_augumentation=False)
 
   Y_train, encoder = create_one_hot_encoder_batch(labels_train)
@@ -95,11 +95,42 @@ model.model.fit(
 
 print("Evaluating on validation set:")
 
-predictions = model.model.predict(X_val[0:1,:,:])
-class_names = encoder.inverse_transform(predictions[0,:,:])
-check_model_predictions(model.model, X_val[0:1,:,:], class_names[:,0])
+#predictions = model.model.predict(X_val[0:1,:,:])
+#class_names = encoder.inverse_transform(predictions[0,:,:])
+#check_model_predictions(model.model, X_val[0:1,:,:], class_names[:,0])
 
+#############################
+# Testing on new audio files
+###############################
+
+# Audio1
+audio, _ = load_audio_file("audio1.ogg")
+magnitude_db, _ = compute_stft(audio, n_fft=N_FFT)
+magnitude_db = magnitude_db.T  # (time, features)
+magnitude_db = magnitude_db.astype(np.float32)
+  # Normalize using training parameters
+magnitude_db = np.expand_dims(magnitude_db, axis=0)  # Add batch dimension
+magnitude_db = (magnitude_db - norm_params[0].transpose(0,2,1)) / norm_params[1].transpose(0,2,1)
+predictions = model.model.predict(magnitude_db)
+predicted_classes = encoder.inverse_transform(predictions[0])
+check_model_predictions(model.model, magnitude_db, predicted_classes[:,0])
+print(f"Predicted classes for audio2.ogg: {predicted_classes[:,0]}")
+
+# Audio2
 audio, _ = load_audio_file("audio2.ogg")
+magnitude_db, _ = compute_stft(audio, n_fft=N_FFT)
+magnitude_db = magnitude_db.T  # (time, features)
+magnitude_db = magnitude_db.astype(np.float32)
+  # Normalize using training parameters
+magnitude_db = np.expand_dims(magnitude_db, axis=0)  # Add batch dimension
+magnitude_db = (magnitude_db - norm_params[0].transpose(0,2,1)) / norm_params[1].transpose(0,2,1)
+predictions = model.model.predict(magnitude_db)
+predicted_classes = encoder.inverse_transform(predictions[0])
+check_model_predictions(model.model, magnitude_db, predicted_classes[:,0])
+print(f"Predicted classes for audio2.ogg: {predicted_classes[:,0]}")
+
+# Audio3
+audio, _ = load_audio_file("audio3.ogg")
 magnitude_db, _ = compute_stft(audio, n_fft=N_FFT)
 magnitude_db = magnitude_db.T  # (time, features)
 magnitude_db = magnitude_db.astype(np.float32)

@@ -6,10 +6,15 @@ import librosa
 import librosa.display
 import os
 import random
-import augmentations
 
 from sklearn.preprocessing import OneHotEncoder
 from scipy.ndimage import gaussian_filter1d
+
+from augmentations import augment_spectrogram
+
+import numpy as np
+import librosa
+import sounddevice as sd
 
 def check_model_predictions(model, stft, labels):
 
@@ -93,6 +98,14 @@ def load_wav_data(directory):
             labels.append(label)
 
             audio, sr = load_audio_file(file_path)
+
+            # Pad or trim audio to 2 second (44100 samples at 22.05 kHz)
+            if(len(audio)<44100):
+               padding = 44100 - len(audio)
+               audio = np.pad(audio, (0, padding), mode='constant')
+            elif(len(audio)>44100):
+               audio = audio[:44100]
+
             magnitude_db, phase = compute_stft(audio[:8000], n_fft=2048)
             data.append(magnitude_db)
 
@@ -118,6 +131,8 @@ def generate_time_windows(audio_array, labels, window_size, max_length, sr, add_
 
    total_length = 0
    total_audio = np.array([])
+   onset_frames = int(0.25*sr//512)  # 100 ms onset frames
+
    i = 0
 
    chunks = []
@@ -127,13 +142,14 @@ def generate_time_windows(audio_array, labels, window_size, max_length, sr, add_
       
       audio_sample_ind = random.randint(0, audio_array.shape[0]-1)
       audio_sample = audio_array[audio_sample_ind, :, :]
-      audio_sample = augmentations.augment_spectrogram(audio_sample) if add_augumentation else audio_sample
+      audio_sample = augment_spectrogram(audio_sample) if add_augumentation else audio_sample
 
       chunks.append(audio_sample)
       
       # Get the label for this specific audio sample
       sample_label = labels[audio_sample_ind]
-      labels_chunks.extend([sample_label] * audio_sample.shape[1])
+      #labels_chunks.extend([sample_label] * audio_sample.shape[1])
+      labels_chunks.extend([sample_label]*onset_frames+(audio_sample.shape[1]-onset_frames)*['None'])
 
       #silence_window = -80*np.ones((audio_array.shape[1], random.randint(0, 5)))
       silence_window = generate_realistic_silence(random.randint(0, 20),audio_array.shape[1])
@@ -168,6 +184,9 @@ def generate_time_windows(audio_array, labels, window_size, max_length, sr, add_
 
    mean = np.mean(windows_trimmed, axis=(0,2), keepdims=True)
    std  = np.std(windows_trimmed, axis=(0,2), keepdims=True)
+
+   #mean = 0
+   #std = 1
 
    windows_trimmed = (windows_trimmed - mean) / std
 

@@ -1,8 +1,9 @@
+import librosa
 import numpy as np
-from utils import load_wav_data
 import random
 from scipy.ndimage import gaussian_filter1d
-
+import matplotlib.pyplot as plt
+import sounddevice as sd
 
 # =========================================================
 # Utility
@@ -10,6 +11,56 @@ from scipy.ndimage import gaussian_filter1d
 
 def _copy(spec):
     return np.array(spec, copy=True)
+
+def reconstruct_and_play_audio(
+    magnitude_db,
+    sr=22050,
+    hop_length=512,
+    win_length=2048,
+    n_fft=2048,
+    n_iter=32
+):
+    """
+    Reconstruct waveform from STFT magnitude in dB and play it.
+
+    Parameters
+    ----------
+    magnitude_db : np.ndarray
+        Shape = (freq_bins, time_frames) OR (time_frames, freq_bins)
+
+    sr : int
+        Sample rate
+
+    n_iter : int
+        Griffin-Lim iterations (more = better quality, slower)
+    """
+
+    ## Ensure shape = (freq, time)
+    #if magnitude_db.shape[0] < magnitude_db.shape[1]:
+    #    mag_db = magnitude_db
+    #else:
+    #    mag_db = magnitude_db.T
+
+    # Convert dB → amplitude
+    magnitude = librosa.db_to_amplitude(magnitude_db)
+
+    # Griffin-Lim phase reconstruction
+    waveform = librosa.griffinlim(
+        magnitude,
+        n_iter=n_iter,
+        hop_length=hop_length,
+        win_length=win_length,
+        n_fft=n_fft
+    )
+
+    # Normalize to prevent clipping
+    waveform = waveform / np.max(np.abs(waveform) + 1e-8)
+
+    # Play audio
+    sd.play(waveform, sr)
+    sd.wait()
+
+    return waveform
 
 
 # =========================================================
@@ -134,30 +185,43 @@ def random_dynamic_range(spec, gamma_low=0.8, gamma_high=1.2):
 # 9) Add recorded background noise to training samples
 # =========================================================
 
-def add_background_noise(audio_data, path_to_noise):
+def add_background_noise(audio_data, path_to_noise, norm_params, n_fft=2048, hop_length=512, win_length=2048):
 
-    directory = 'background-sounds'
-    background_noise, _ = load_wav_data(directory)
-    background_noise = np.array(audio_array)
+    background_noise_gain = 2
 
-    len_windows = audio_data.shape[1]
+    audio_noise, sr = librosa.load(path_to_noise, mono=True, dtype=np.float32)
+    background_noise = background_noise_gain*np.array(audio_noise)
+    noise_stft = librosa.stft(background_noise, n_fft=n_fft, hop_length=hop_length, win_length=win_length)
+    noise_stft = noise_stft.astype(np.float32)
+    magnitude, phase = librosa.magphase(noise_stft)
+    noise_stft_db = librosa.amplitude_to_db(np.abs(magnitude), ref=np.max)    
+    noise_stft_db = (noise_stft_db[np.newaxis,:,:] - norm_params[0]) / norm_params[1]
+    noise_stft_db = noise_stft_db[0,:,:].T  # (time, features)
+
+    len_windows = audio_data.shape[2]
     
     for i in range(audio_data.shape[0]):
 
         # Create subplots
-        fig, axs = plt.subplots(2, figsize=(12, 8))
+        #fig, axs = plt.subplots(2, figsize=(12, 8))
 
         # Plot the spectrogram on the first subplot
-        img = axs[0].imshow(stft.T, aspect='auto', origin='lower', cmap='jet')
+        #img = axs[0].imshow(audio_data[i,:,:] , aspect='auto', origin='lower', cmap='jet')
 
-        noise_sample_ind = random.randint(0, background_noise.shape[1]-len_windows-1)
-        noise_sample = background_noise[0, noise_sample_ind:noise_sample_ind+len_windows, :]
-        audio_data[i,:,:] += noise_sample
+        #reconstruct_and_play_audio(audio_data[i,:,:])
 
-        img = axs[1].imshow(stft.T, aspect='auto', origin='lower', cmap='jet')
+        noise_sample_ind = random.randint(0, noise_stft_db.shape[0]-len_windows-1)
+        noise_sample = noise_stft_db[noise_sample_ind:noise_sample_ind+len_windows, :]
+        audio_data[i,:,:] += noise_sample.T
+
+        #img = axs[1].imshow(audio_data[i,:,:] , aspect='auto', origin='lower', cmap='jet')
+
+        #reconstruct_and_play_audio(audio_data[i,:,:])
 
         # Show the plot
-        plt.show()
+        #plt.show()
+
+        return audio_data
 
 # =========================================================
 # 10) Full Augmentation Pipeline

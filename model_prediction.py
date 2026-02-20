@@ -1,6 +1,6 @@
 import numpy as np
-#import tensorflow as tf
-#from tensorflow import keras
+import tensorflow as tf
+from tensorflow import keras
 import utils
 import os
 from sklearn.preprocessing import OneHotEncoder
