@@ -3,6 +3,11 @@
 This repository explores audio (drum sound) classification using deep learning. The project focuses on experimenting with different model architectures and problem formulations to better understand what works (and what doesn’t) when classifying short percussive sounds such as kicks, snares, and cymbals.
 The work was motivated by hands-on experimentation and discussion around the challenges of using sequence models (RNN/LSTM) for drum sound classification, and how alternative formulations can lead to more stable and interpretable results.
 
+Motivation also came from personal involvment with music and sound and recurring usecase of having to quickly draft music ideas.
+This was an attempt to explore how simple would it be to make simple music drafts transcribed as MIDI, by simply tapping, humming, whistling, beatboxing or simply feeding an existing recording.
+
+Problem is multi-fauceted ofcourse, and at the moment, main focus is on drum detection/classification, but further efforts would be directed into note transcription and instrument categorization for other instruments.
+
 ## 📌 Repository Idea
 
 Purpose of this project was following:
