@@ -5,7 +5,7 @@ import utils
 import os
 from sklearn.preprocessing import OneHotEncoder
 
-from utils import load_audio_file, compute_stft, plot_spectrogram, check_model_predictions, load_wav_data, create_one_hot_encoder_batch, generate_time_windows
+from utils import load_audio_file, compute_stft, plot_spectrogram, check_model_predictions, load_wav_data, create_one_hot_encoder_batch, generate_time_windows, detect_onsets
 
 WINDOW_SIZE = 0.025  # in seconds (100 ms)
 HOP_SIZE = 0.05  # in seconds (50 ms)

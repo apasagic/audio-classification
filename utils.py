@@ -9,12 +9,162 @@ import random
 
 from sklearn.preprocessing import OneHotEncoder
 from scipy.ndimage import gaussian_filter1d
+from scipy.signal import find_peaks
 
 from augmentations import augment_spectrogram
 
-import numpy as np
-import librosa
-import sounddevice as sd
+
+
+def detect_onsets(probs, threshold=0.5, min_distance=3):
+    """
+    Detect onset peaks per class.
+
+    Returns:
+        list of (frame_index, class_index, probability)
+    """
+    events = []
+
+    num_classes = probs.shape[1]
+
+    for c in range(num_classes):
+        class_probs = probs[:, c]
+
+        peaks, _ = find_peaks(
+            class_probs,
+            height=threshold,
+            distance=min_distance
+        )
+
+        for p in peaks:
+            events.append((p, c, class_probs[p]))
+
+    return events
+
+def smooth_probabilities(probs, sigma=1.5):
+    """
+    Smooth per-frame probabilities over time.
+
+    probs shape: (time, classes)
+    """
+    smoothed = np.zeros_like(probs)
+
+    for c in range(probs.shape[1]):
+        smoothed[:, c] = gaussian_filter1d(probs[:, c], sigma=sigma)
+
+    return smoothed
+
+def compute_frame_energy(magnitude_db):
+    """
+    Estimate energy per frame from spectrogram.
+    """
+    return np.mean(magnitude_db, axis=1)
+
+
+def apply_energy_gate(probs, energy, threshold_percentile=20):
+    """
+    Zero out predictions during low-energy frames.
+    """
+    threshold = np.percentile(energy, threshold_percentile)
+
+    mask = energy > threshold
+
+    gated = probs.copy()
+    gated[~mask] = 0
+
+    return gated
+
+def probs_to_class_labels(probs, classes, threshold=0.5):
+    """
+    Convert sigmoid outputs to per-frame class labels.
+
+    probs shape: (time, num_classes)
+
+    Returns:
+        list of string labels per frame
+    """
+    labels = []
+
+    for t in range(probs.shape[0]):
+        frame_probs = probs[t]
+
+        # find active classes
+        active = np.where(frame_probs >= threshold)[0]
+
+        if len(active) == 0:
+            labels.append("None")
+        else:
+            # if multiple active Ã¢â€ â€™ take strongest
+            best = active[np.argmax(frame_probs[active])]
+            labels.append(classes[best])
+
+    return np.array(labels)
+
+def convert_to_multilabel(labels, class_list):
+    """
+    Convert label arrays to multi-label binary format.
+
+    Works with:
+        (num_frames,)
+        (num_windows, window_size)
+
+    Returns:
+        (num_frames, num_classes) OR
+        (num_windows, window_size, num_classes)
+    """
+
+    labels = np.array(labels)
+    num_classes = len(class_list)
+
+    # --- Case 1: single sequence ---
+    if labels.ndim == 1:
+        num_frames = labels.shape[0]
+        binary = np.zeros((num_frames, num_classes), dtype=np.float32)
+
+        for i, lbl in enumerate(labels):
+            if lbl != 'None' and lbl != 'none':
+                if lbl in class_list:
+                    idx = class_list.index(lbl)
+                    binary[i, idx] = 1
+
+        return binary
+
+    # --- Case 2: batched windows ---
+    elif labels.ndim == 2:
+        num_windows, window_size = labels.shape
+        binary = np.zeros((num_windows, window_size, num_classes), dtype=np.float32)
+
+        for w in range(num_windows):
+            for t in range(window_size):
+                lbl = labels[w, t]
+                if lbl != 'None' and lbl != 'none':
+                    if lbl in class_list:
+                        idx = class_list.index(lbl)
+                        binary[w, t, idx] = 1
+
+        return binary
+
+    else:
+        raise ValueError("labels must be 1D or 2D array of strings")
+
+
+def extract_drum_events(probs, magnitude_db):
+    """
+    Full onset detection pipeline.
+    """
+
+    # 1. Smooth probabilities
+    probs = smooth_probabilities(probs, sigma=1.5)
+
+    # 2. Compute energy
+    energy = compute_frame_energy(magnitude_db)
+
+    # 3. Apply energy gate
+    probs = apply_energy_gate(probs, energy)
+
+    # 4. Peak detection
+    events = detect_onsets(probs)
+
+    return events
 
 def check_model_predictions(model, stft, labels):
 
@@ -50,7 +200,7 @@ def compute_stft(audio, n_fft=2048, hop_length=512, win_length=2048):
     return magnitude_db, phase
 
 def find_events_from_predictions(predictions, threshold=0.5, sigma = 2, distance = 5):
-   
+
    predictions = model.predict(magnitude_db)[0]
 
    # Smooth
@@ -85,12 +235,12 @@ def load_wav_data(directory):
         for file in files:
 
           if file.endswith(".wav"):
- 
+
             file_path = os.path.join(root, file)
 
             # Get a label Y from a file name
-            label = os.path.basename(os.path.dirname(file_path))  # Assuming each subdirectory represents a class            
-            
+            label = os.path.basename(os.path.dirname(file_path))  # Assuming each subdirectory represents a class
+
             #if the label starts with #, skip it (used for temporary files or ignored samples)
             if(label[0]=="#"):
                continue
@@ -98,14 +248,6 @@ def load_wav_data(directory):
             labels.append(label)
 
             audio, sr = load_audio_file(file_path)
-
-            # Pad or trim audio to 2 second (44100 samples at 22.05 kHz)
-            if(len(audio)<44100):
-               padding = 44100 - len(audio)
-               audio = np.pad(audio, (0, padding), mode='constant')
-            elif(len(audio)>44100):
-               audio = audio[:44100]
-
             magnitude_db, phase = compute_stft(audio[:8000], n_fft=2048)
             data.append(magnitude_db)
 
@@ -131,7 +273,7 @@ def generate_time_windows(audio_array, labels, window_size, max_length, sr, add_
 
    total_length = 0
    total_audio = np.array([])
-   onset_frames = int(0.25*sr//512)  # 100 ms onset frames
+   onset_frames = int(0.15*sr//512)  # 100 ms onset frames
 
    i = 0
 
@@ -139,20 +281,19 @@ def generate_time_windows(audio_array, labels, window_size, max_length, sr, add_
    labels_chunks = []
 
    while total_length < max_length:
-      
+
       audio_sample_ind = random.randint(0, audio_array.shape[0]-1)
       audio_sample = audio_array[audio_sample_ind, :, :]
-      audio_sample = augment_spectrogram(audio_sample) if add_augumentation else audio_sample
+      audio_sample = augmentations.augment_spectrogram(audio_sample) if add_augumentation else audio_sample
 
       chunks.append(audio_sample)
-      
+
       # Get the label for this specific audio sample
       sample_label = labels[audio_sample_ind]
-      #labels_chunks.extend([sample_label] * audio_sample.shape[1])
-      labels_chunks.extend([sample_label]*onset_frames+(audio_sample.shape[1]-onset_frames)*['None'])
+      labels_chunks.extend([sample_label] * onset_frames + ['None'] * (audio_sample.shape[1] - onset_frames))
 
       #silence_window = -80*np.ones((audio_array.shape[1], random.randint(0, 5)))
-      silence_window = generate_realistic_silence(random.randint(0, 20),audio_array.shape[1])
+      silence_window = generate_realistic_silence(audio_array.shape[1], random.randint(0, 20))
 
       chunks.append(silence_window)
       labels_chunks.extend(['None'] * silence_window.shape[1])
@@ -161,7 +302,7 @@ def generate_time_windows(audio_array, labels, window_size, max_length, sr, add_
       #total_length = i*2
 
       i += 1
-      
+
       if(i%10==0):
         print(f"{i}: Generated {total_length} seconds of audio data")
 
@@ -185,13 +326,8 @@ def generate_time_windows(audio_array, labels, window_size, max_length, sr, add_
    mean = np.mean(windows_trimmed, axis=(0,2), keepdims=True)
    std  = np.std(windows_trimmed, axis=(0,2), keepdims=True)
 
-   #mean = 0
-   #std = 1
-
    windows_trimmed = (windows_trimmed - mean) / std
 
    norm_params = (mean, std)
 
    return windows_trimmed, labels_trimmed, norm_params
-   
-

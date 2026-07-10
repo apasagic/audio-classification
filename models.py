@@ -8,6 +8,7 @@ from keras.models import Sequential
 from keras.layers import LSTM, SimpleRNN, Dense, Bidirectional, Dropout, TimeDistributed, Activation, Input, Reshape, Lambda, RepeatVector
 from keras.layers import Conv1D, Conv2D, MaxPooling2D, Dense, Dropout, Input, Flatten
 from keras.optimizers import Adam
+from tensorflow.keras.metrics import AUC
 
 class modelNN:
     def __init__(self,model_type,out_dim=5):
@@ -23,7 +24,7 @@ class modelNN:
             #Conv1D(64, kernel_size=3, padding="same", activation="relu"),
 
             #Dense(5, activation="softmax")   # per-frame prediction
-           
+
             Conv1D(256, kernel_size=7, padding="same", activation="relu", use_bias=True,data_format="channels_last"),
             Dropout(0.1),
 
@@ -32,14 +33,15 @@ class modelNN:
 
             Conv1D(64, kernel_size=3, padding="same", activation="relu", use_bias=True,data_format="channels_last"),
 
-            Dense(4, activation="softmax")   # per-frame prediction
+            Dense(out_dim, activation="sigmoid")   # per-frame multilabel prediction
             ])
 
             model_CNN.compile(
-                optimizer=Adam(learning_rate=1e-3),
-                loss="categorical_crossentropy",
-                metrics=["accuracy"]
+                optimizer=Adam(learning_rate=5e-4),
+                loss="binary_crossentropy",
+                metrics=[AUC(curve="ROC", multi_label=True, name="auc"),]
             )
+
 
             model_CNN.summary()
             self.model = model_CNN
@@ -58,7 +60,7 @@ class modelNN:
             loss="categorical_crossentropy",
             metrics=["accuracy"]
             )
-            
+
             model_FF.summary()
             self.model = model_FF
 
@@ -66,7 +68,7 @@ class modelNN:
 
             model_2D_CNN = Sequential([
             Input(shape=(None, 1025, 1)),      # (time, frequency, channels)
-            
+
             Conv2D(64, kernel_size=(3, 3), padding="same", activation="relu"),
             MaxPooling2D(pool_size=(2, 2)),
             Dropout(0.3),
@@ -84,10 +86,10 @@ class modelNN:
 
             # Global average pooling to handle variable time dimension
             Lambda(lambda x: tf.reduce_mean(x, axis=[2])),  # Average over frequency dimension
-            
+
             Dense(512, activation='relu'),
             Dropout(0.5),
-            Dense(5, activation='softmax')  # per-frame prediction
+            Dense(5, activation='sigmoid')  # per-frame prediction
             ])
 
             model_2D_CNN.compile(
@@ -95,7 +97,7 @@ class modelNN:
             loss="categorical_crossentropy",
             metrics=["accuracy"]
             )
-            
+
             model_2D_CNN.summary()
             self.model = model_2D_CNN
 
@@ -112,4 +114,3 @@ class modelNN:
         )
 
         return history
-
