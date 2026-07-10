@@ -1,0 +1,6 @@
+﻿numpy
+librosa
+tensorflow
+pretty_midi
+pyfluidsynth
+sounddevice
