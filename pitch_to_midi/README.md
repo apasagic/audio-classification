@@ -1,4 +1,4 @@
-﻿# Pitch to MIDI side project
+# Pitch to MIDI side project
 
 Small isolated experiment for pitch recognition.
 
@@ -29,6 +29,25 @@ Preferred renderer:
 Fallback renderer:
 - A tiny internal harmonic synth.
 - This is not as realistic as SoundFont audio, but it still renders from MIDI note labels and lets the ML pipeline run without saving audio files.
+
+
+## One-command environment setup
+
+Windows PowerShell:
+
+```powershell
+cd "C:\path\to\audio-classification\pitch_to_midi"
+.\setup_env.ps1
+```
+
+Linux or WSL2:
+
+```bash
+cd /path/to/audio-classification/pitch_to_midi
+bash ./setup_env.sh
+```
+
+The scripts create `.venv`, upgrade `pip`, and install `requirements.txt`. For serious GPU training, prefer Linux/WSL2 with a TensorFlow build that can see the GPU. Native Windows TensorFlow may run CPU-only.
 
 ## Setup
 
