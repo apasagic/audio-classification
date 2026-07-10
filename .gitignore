@@ -320,3 +320,20 @@ audio2.ogg
 my_trained_model.keras
 generated_windows2.npz
 best_cnn_model.keras
+
+# Generated Python caches and local training artifacts
+__pycache__/
+*.py[cod]
+# Local audio/data/model artifacts
+Audio*.ogg
+*.keras
+*.npz
+Drum_samples/**/*.wav
+Drum_samples/**/*.lnk
+# Pitch-to-MIDI local artifacts
+pitch_to_midi/.venv/
+pitch_to_midi/__pycache__/
+pitch_to_midi/*_previews/
+pitch_to_midi/*.log
+pitch_to_midi/*.keras
+pitch_to_midi/*.json
