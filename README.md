@@ -8,7 +8,13 @@ This was an attempt to explore how simple would it be to make simple music draft
 
 Problem is multi-fauceted ofcourse, and at the moment, main focus is on drum detection/classification, but further efforts would be directed into note transcription and instrument categorization for other instruments.
 
-## 📌 Repository Idea
+## MIDI Transcription / Pitch-to-MIDI
+
+This repository also contains a separate `pitch_to_midi/` side project for melodic transcription: humming, singing, whistling, or playing a monophonic line and converting it into MIDI notes. The goal is to test different machine-learning approaches for quick sound sketches, where audio can become editable MIDI instead of staying as a rough recording.
+
+The pitch-to-MIDI work is intentionally kept in its own folder for now so the drum-classification code remains clean. It includes generated-data training pipelines, augmentation experiments, and a small piano-roll GUI for more intuitive testing and parameter tuning. See [`pitch_to_midi/README.md`](pitch_to_midi/README.md) for the detailed roadmap and commands.
+
+## Repository Idea
 
 Purpose of this project was following:
 
