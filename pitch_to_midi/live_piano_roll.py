@@ -1,4 +1,4 @@
-﻿"""
+"""
 Live microphone piano-roll view with record/stop/replay and tweakable grouping.
 
 The sliders are intentionally exposed because pitch tracking is sensitive to mic,
@@ -385,6 +385,8 @@ class PianoRollApp:
             return f"{value:.5f}"
         if label == "Pitch tol":
             return f"{int(round(value))} st"
+        if label == "Replay BPM":
+            return f"{value:.0f} bpm"
         return f"{value * 1000:.0f} ms"
 
     def update_slider_labels(self):

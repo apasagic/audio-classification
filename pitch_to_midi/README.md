@@ -1,17 +1,23 @@
 # Pitch to MIDI side project
 
-Small isolated experiment for pitch recognition.
+This folder contains the melodic transcription side of the larger audio-to-MIDI project. The long-term goal is an app for fast musical sketching: hum, sing, whistle, beatbox, tap, or play a rough idea, then turn the detected events into editable MIDI.
 
-Goal:
-- Pick random MIDI note labels.
-- Render those notes to audio in memory.
-- Augment the audio without changing the note label.
-- Train a tiny neural net to classify the MIDI note from the audio.
-- Avoid storing generated audio datasets locally.
+For now this stays separate from the drum-classification code so experiments stay easy to reason about. The folder includes generated-data ML pipelines, audio augmentation, sample/synth rendering, and a small piano-roll GUI used to inspect and tune detection behavior.
+
+The GUI is not the final model. It is a practical testing surface: it lets us see raw detector chunks, grouped notes, pitch transitions, replay timing, and how parameter changes affect transcription before those ideas are moved into a trained model.
+
+## Current roadmap
+
+- Generate arbitrary monophonic MIDI-note sequences in memory.
+- Render them with simple synths now, and SoundFonts/sample packs later.
+- Add augmentation such as noise, gain, stretch, reverb, pitch variation, and timing variation.
+- Train small baseline models first, then compare CNN-style spectrogram models and sequence models.
+- Evaluate whether synthetic pretraining transfers to humming, singing, whistling, and real instruments.
+- Use the piano-roll GUI to tune and inspect results while the ML pipeline matures.
 
 ## Current approach
 
-The script generates fresh batches during training:
+The first scripts generate fresh batches during training:
 
 ```text
 random MIDI note -> rendered audio -> augmentation -> CQT features -> neural net
@@ -125,6 +131,12 @@ A tiny Ableton/FL-style piano-roll display is included:
 It listens to the microphone, estimates pitch from C2 to C5, converts it to MIDI, and draws detected notes on a scrolling grid. Use **Start Recording**, **Stop Recording**, and **Replay** to capture detected note chunks. Use **Fit replay** to keep the whole phrase zoomed out during replay while a blue playhead line moves left to right. Use **Replay BPM** to slow down or speed up playback, where 120 BPM is normal speed. Recording uses frequent 50 ms chunks plus a rolling analysis buffer, so notes flow live while low notes still get enough context. Small consecutive detector chunks are grouped into longer MIDI-like notes for display and replay. Stop freezes the captured phrase on the grid, and Replay animates the notes again while synthesizing them with a simple internal Piano/Violin/Flute/Synth timbre. This is still a baseline `librosa.yin()` detector, not the neural net. The UI is meant as a clear first visual layer that we can later connect to the trained model, SoundFont playback, or MIDI output. **Save** and **Load** store/reopen JSON sessions containing raw detected pitch chunks plus current UI settings, so grouping can still be adjusted after loading.
 
 
+## GUI and tuning
+
+`live_piano_roll.py` is a small Tkinter test interface for microphone input and replay. It exists so detector behavior can be seen directly instead of only measured through logs. The important controls expose pitch tolerance, gap merging, minimum note length, replay speed, zoom behavior, and input device selection.
+
+This is especially useful while the project is still between classical pitch tracking and neural transcription: the GUI shows where notes are chopped, merged, missed, or shifted, which gives concrete failure cases for the next ML pipeline.
+
 ## STFT CNN pipeline
 
 A slightly more realistic generated-data CNN starter is included:
@@ -149,6 +161,16 @@ Current target type is single-label classification: one note is active in each g
 
 Augmentation currently includes random gain, noise, time shift, time stretch, small cents-level pitch variation, and simple synthetic reverb. These are generated in memory; no large audio dataset is written to disk.
 
+
+## Transcription target
+
+The desired output is not just a list of isolated pitches. The practical target is a MIDI-like sequence:
+
+```text
+note number + note start + note duration + optional velocity
+```
+
+The current sequence pipeline treats this as frame-wise classification: each spectrogram frame is either silence or one active MIDI note. That is a simpler first step than full onset/offset/velocity prediction, but it matches the first use case: one melodic line at a time.
 
 ## Sequence transcription pipeline
 
