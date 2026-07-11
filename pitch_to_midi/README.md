@@ -128,6 +128,8 @@ A tiny Ableton/FL-style piano-roll display is included:
 .\.venv\Scripts\python.exe .\live_piano_roll.py
 ```
 
+![Live Pitch to MIDI piano-roll GUI](docs/live_piano_roll.png)
+
 It listens to the microphone, estimates pitch from C2 to C5, converts it to MIDI, and draws detected notes on a scrolling grid. Use **Start Recording**, **Stop Recording**, and **Replay** to capture detected note chunks. Use **Fit replay** to keep the whole phrase zoomed out during replay while a blue playhead line moves left to right. Use **Replay BPM** to slow down or speed up playback, where 120 BPM is normal speed. Recording uses frequent 50 ms chunks plus a rolling analysis buffer, so notes flow live while low notes still get enough context. Small consecutive detector chunks are grouped into longer MIDI-like notes for display and replay. Stop freezes the captured phrase on the grid, and Replay animates the notes again while synthesizing them with a simple internal Piano/Violin/Flute/Synth timbre. This is still a baseline `librosa.yin()` detector, not the neural net. The UI is meant as a clear first visual layer that we can later connect to the trained model, SoundFont playback, or MIDI output. **Save** and **Load** store/reopen JSON sessions containing raw detected pitch chunks plus current UI settings, so grouping can still be adjusted after loading.
 
 
