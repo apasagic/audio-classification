@@ -1,4 +1,4 @@
-﻿"""
+"""
 MIDI-note rendering helpers.
 
 Preferred renderer:
@@ -11,10 +11,13 @@ Both render from symbolic MIDI notes to audio in memory, so no giant audio datas
 """
 
 import os
+from functools import lru_cache
+
 import numpy as np
 
 
 DEFAULT_PROGRAMS = [0, 24, 40, 56, 73]
+_DLL_DIRECTORY_HANDLE = None
 
 
 def midi_to_hz(midi_note):
@@ -34,31 +37,39 @@ def render_note(midi_note, sr, duration, soundfont_path=None):
 
 
 def render_note_with_soundfont(midi_note, sr, duration, soundfont_path, programs=None):
-    """Render one MIDI note to audio using a SoundFont.
-
-    Requires pretty_midi, pyFluidSynth, the native FluidSynth library, and a .sf2 file.
-    """
-    import pretty_midi
+    """Render a cached SoundFont note while preserving program diversity."""
+    global _DLL_DIRECTORY_HANDLE
+    dll_dir = os.environ.get("FLUIDSYNTH_DIR")
+    if dll_dir and hasattr(os, "add_dll_directory") and _DLL_DIRECTORY_HANDLE is None:
+        _DLL_DIRECTORY_HANDLE = os.add_dll_directory(dll_dir)
+        os.environ["PATH"] = dll_dir + os.pathsep + os.environ.get("PATH", "")
 
     programs = programs or DEFAULT_PROGRAMS
     program = int(np.random.choice(programs))
-    velocity = int(np.random.randint(55, 115))
+    # FluidSynth startup dominates training. Cache one long sample for every
+    # pitch/program pair (37 x 5), then create duration variation by cropping.
+    cached = _render_soundfont_cached(int(midi_note), int(sr), str(soundfont_path), program)
+    result = fix_length(cached, sr, duration).copy()
+    release = min(len(result), max(1, int(sr * 0.05)))
+    result[-release:] *= np.linspace(1.0, 0.0, release, dtype=np.float32)
+    return fix_length(result, sr, duration)
 
+
+@lru_cache(maxsize=256)
+def _render_soundfont_cached(midi_note, sr, soundfont_path, program):
+    import pretty_midi
+
+    bank_duration = 1.20
     midi = pretty_midi.PrettyMIDI(initial_tempo=120)
     instrument = pretty_midi.Instrument(program=program)
-    instrument.notes.append(
-        pretty_midi.Note(
-            velocity=velocity,
-            pitch=int(midi_note),
-            start=0.05,
-            end=float(duration),
-        )
-    )
+    instrument.notes.append(pretty_midi.Note(
+        velocity=100, pitch=midi_note, start=0.05, end=1.10,
+    ))
     midi.instruments.append(instrument)
-
     audio = midi.fluidsynth(fs=sr, sf2_path=soundfont_path)
-    return fix_length(audio, sr, duration)
-
+    result = fix_length(audio, sr, bank_duration)
+    result.setflags(write=False)
+    return result
 
 def render_note_with_internal_synth(midi_note, sr, duration):
     """A simple non-sine synth for testing the ML pipeline without FluidSynth."""

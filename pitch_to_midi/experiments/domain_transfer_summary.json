@@ -1,0 +1,38 @@
+﻿[
+    {
+        "experiment":  "transfer_synth_to_tinysol",
+        "tinysol_frame":  0.8213525026624068,
+        "tinysol_note_only":  0.7966519823788546,
+        "tinysol_within_one":  0.8318942731277533,
+        "nsynth_frame":  null,
+        "nsynth_note_only":  null,
+        "nsynth_within_one":  null
+    },
+    {
+        "experiment":  "transfer_mixed50_to_tinysol",
+        "tinysol_frame":  0.8839856230031949,
+        "tinysol_note_only":  0.8895762042642801,
+        "tinysol_within_one":  0.8927349302448012,
+        "nsynth_frame":  null,
+        "nsynth_note_only":  null,
+        "nsynth_within_one":  null
+    },
+    {
+        "experiment":  "transfer_soundfont_mixed50_to_tinysol",
+        "tinysol_frame":  0.8733027156549521,
+        "tinysol_note_only":  0.9020794946038431,
+        "tinysol_within_one":  0.9136614898657541,
+        "nsynth_frame":  null,
+        "nsynth_note_only":  null,
+        "nsynth_within_one":  null
+    },
+    {
+        "experiment":  "transfer_soundfont_tinysol_nsynth",
+        "tinysol_frame":  0.8675119808306709,
+        "tinysol_note_only":  0.9222163727296657,
+        "tinysol_within_one":  0.9343248223216636,
+        "nsynth_frame":  0.8098043130990416,
+        "nsynth_note_only":  0.8315340530454485,
+        "nsynth_within_one":  0.8492602958816473
+    }
+]

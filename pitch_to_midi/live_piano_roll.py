@@ -19,6 +19,9 @@ from tkinter import filedialog, ttk
 import librosa
 import numpy as np
 import sounddevice as sd
+from tensorflow import keras
+
+from sequence_pitch_pipeline import MIDI_NOTES, SILENCE_CLASS, audio_to_features
 
 
 SR = 16_000
@@ -42,6 +45,9 @@ TIMBRES = ["Piano", "Violin", "Flute", "Synth"]
 
 LOG_PATH = Path(__file__).with_name("live_piano_roll.log")
 DEFAULT_SESSION_PATH = Path(__file__).with_name("last_piano_roll_session.json")
+DEFAULT_NEURAL_MODEL = Path(__file__).with_name("cqt_gru_best.keras")
+NEURAL_ANALYSIS_SECONDS = 2.5
+NEURAL_UPDATE_SECONDS = 0.20
 
 
 def setup_logging():
@@ -82,6 +88,42 @@ def midi_to_hz(midi_note):
 
 def midi_to_name(midi_note):
     return f"{NOTE_NAMES[midi_note % 12]}{midi_note // 12 - 1}"
+
+
+class NeuralPitchDetector:
+    """CQT + sequence NN detector using context from one rolling audio buffer."""
+
+    def __init__(self, model_path=DEFAULT_NEURAL_MODEL):
+        self.model_path = Path(model_path)
+        self.model = None
+        self.error = None
+        try:
+            self.model = keras.models.load_model(self.model_path)
+            logging.info("Loaded neural pitch model %s", self.model_path)
+        except Exception as exc:
+            self.error = str(exc)
+            logging.warning("Neural model unavailable: %s", exc)
+
+    @property
+    def available(self):
+        return self.model is not None
+
+    def predict(self, audio, quiet_rms):
+        rms = float(np.sqrt(np.mean(audio**2)))
+        if rms < quiet_rms or not self.available:
+            return None
+        features = audio_to_features(audio, "cqt")
+        probabilities = self.model.predict(features[None, ...], verbose=0)[0]
+        # Use the latest frame with some right context; this is more stable for
+        # the bidirectional model than asking it to classify the very last frame.
+        lookback = min(12, len(probabilities) - 1)
+        frame = probabilities[-1 - lookback]
+        class_index = int(np.argmax(frame))
+        confidence = float(frame[class_index])
+        if class_index == SILENCE_CLASS:
+            return None
+        midi_note = int(MIDI_NOTES[class_index - 1])
+        return midi_to_hz(midi_note), midi_note, rms, confidence
 
 
 def estimate_pitch(audio, quiet_rms):
@@ -309,6 +351,12 @@ class PianoRollApp:
         self.fit_replay = tk.BooleanVar(value=True)
         self.show_raw = tk.BooleanVar(value=False)
         self.merge_connected = tk.BooleanVar(value=True)
+        self.detector_mode = tk.StringVar(value="Neural CQT+BiGRU")
+        self.current_detector_mode = "Neural CQT+BiGRU"
+        self.neural_detector = NeuralPitchDetector()
+        if not self.neural_detector.available:
+            self.detector_mode.set("YIN fallback")
+            self.current_detector_mode = "YIN fallback"
 
         self.controls = ttk.Frame(self.root)
         self.controls.pack(fill="x", padx=10, pady=6)
@@ -319,6 +367,8 @@ class PianoRollApp:
         ttk.Button(self.controls, text="Reset", command=self.reset).pack(side="left", padx=6)
         ttk.Button(self.controls, text="Save", command=self.save_session).pack(side="left", padx=6)
         ttk.Button(self.controls, text="Load", command=self.load_session).pack(side="left", padx=6)
+        ttk.Label(self.controls, text="Detector").pack(side="left", padx=(18, 6))
+        ttk.OptionMenu(self.controls, self.detector_mode, self.detector_mode.get(), "Neural CQT+BiGRU", "YIN fallback").pack(side="left")
         ttk.Label(self.controls, text="Timbre").pack(side="left", padx=(18, 6))
         ttk.OptionMenu(self.controls, self.timbre, self.timbre.get(), *TIMBRES).pack(side="left")
         ttk.Label(self.controls, text="Input").pack(side="left", padx=(18, 6))
@@ -347,7 +397,8 @@ class PianoRollApp:
         self.canvas.pack(fill="both", expand=True)
 
         self.results = queue.Queue()
-        self.audio_buffer = np.zeros(int(SR * ANALYSIS_SECONDS), dtype=np.float32)
+        self.audio_buffer = np.zeros(int(SR * NEURAL_ANALYSIS_SECONDS), dtype=np.float32)
+        self.last_neural_update = 0.0
         self.running = True
         self.mode = "idle"
         self.status = "Press Start Recording. If no notes appear, try Input 5 or 20 and watch input rms."
@@ -598,8 +649,15 @@ class PianoRollApp:
                 self.latest_rms = float(np.sqrt(np.mean(chunk**2)))
                 self.audio_buffer = np.roll(self.audio_buffer, -len(chunk))
                 self.audio_buffer[-len(chunk):] = chunk
-                result = estimate_pitch(self.audio_buffer, self.current_quiet_rms)
-                self.results.put((time.time(), result, None))
+                now = time.time()
+                if self.current_detector_mode.startswith("Neural"):
+                    if now - self.last_neural_update < NEURAL_UPDATE_SECONDS:
+                        continue
+                    self.last_neural_update = now
+                    result = self.neural_detector.predict(self.audio_buffer, self.current_quiet_rms)
+                else:
+                    result = estimate_pitch(self.audio_buffer[-int(SR * ANALYSIS_SECONDS):], self.current_quiet_rms)
+                self.results.put((now, result, None))
             except Exception as exc:
                 logging.exception("Audio loop error")
                 self.results.put((time.time(), None, str(exc)))
@@ -653,10 +711,12 @@ class PianoRollApp:
             if result is None:
                 self.status = f"Recording... no pitch. input rms={self.latest_rms:.5f}, Quiet RMS={self.quiet_rms.get():.5f}, Input={self.input_device.get()}"
                 continue
-            hz, midi_note, rms = result
+            hz, midi_note, rms, *extra = result
+            confidence = extra[0] if extra else None
             t_recording = t_abs - self.record_started_at
             self.captured_events.append((t_recording, midi_note, hz, rms))
-            self.status = f"Recording: {hz:7.1f} Hz   MIDI {midi_note:2d}   {midi_to_name(midi_note)}   rms={rms:.4f}"
+            confidence_text = f" confidence={confidence:.1%}" if confidence is not None else ""
+            self.status = f"{self.current_detector_mode}: {hz:7.1f} Hz   MIDI {midi_note:2d}   {midi_to_name(midi_note)}   rms={rms:.4f}{confidence_text}"
 
         if self.mode == "replaying" and self.replay_started_at is not None:
             elapsed = time.time() - self.replay_started_at
@@ -725,6 +785,7 @@ class PianoRollApp:
 
     def draw_loop(self):
         self.current_quiet_rms = self.quiet_rms.get()
+        self.current_detector_mode = self.detector_mode.get()
         self.drain_results()
         self.rms_label.config(text=f"RMS: {self.latest_rms:.5f}")
         self.canvas.delete("all")

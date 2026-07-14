@@ -337,3 +337,6 @@ pitch_to_midi/*_previews/
 pitch_to_midi/*.log
 pitch_to_midi/*.keras
 pitch_to_midi/*.json
+
+# Downloaded public datasets
+pitch_to_midi/datasets/

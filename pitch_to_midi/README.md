@@ -247,3 +247,18 @@ If raw chunks show nothing, choose a different input device in the UI. On this m
 
 
 
+
+## Current results and next-generation model
+
+The main project README now contains the experiment table, conclusions, remaining problems, and commands for the raw-waveform whole-sequence model: see [`../README.md`](../README.md#pitch-transcription-experiment-progress).
+
+Two inference modes are supported by `neural_transcriber.py` after training a raw model:
+
+- whole-file transcription in one neural-network call;
+- repeated preview on the complete microphone buffer as it grows.
+
+The existing CQT pipeline remains the stronger baseline. The raw TCN/BiGRU path is intentionally experimental until it is benchmarked on the same TinySOL and NSynth splits.
+
+## Completed GPU CQT + BiGRU model
+
+The full WSL2 GPU training run is complete. The saved `cqt_gru_best.keras` checkpoint is now the default neural detector used by `live_piano_roll.py`. It achieved 93.1% diagnostic frame accuracy and 95.7% note-only accuracy on TinySOL fold 1; NSynth evaluation-only diagnostic accuracy was 85.9% frame-wise and 87.3% on note frames. See the main README for the full table and learning curves.

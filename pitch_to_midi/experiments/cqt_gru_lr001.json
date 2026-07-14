@@ -1,0 +1,281 @@
+{
+  "config": {
+    "epochs": 8,
+    "batch_size": 2,
+    "train_batches": 60,
+    "val_batches": 12,
+    "test_batches": 12,
+    "save_model": "sequence_pitch_model.keras",
+    "phrase_seconds": 2.5,
+    "architecture": "cnn_gru",
+    "frequency_features": "flatten",
+    "learning_rate": 0.001,
+    "dropout": 0.1,
+    "silence_weight": 1.0,
+    "feature_type": "cqt",
+    "augment": false,
+    "patience": 3,
+    "sample_predictions": 2,
+    "results_json": ".\\experiments\\cqt_gru_lr001.json",
+    "no_save": true,
+    "preview_only": false,
+    "write_previews": 0,
+    "preview_dir": "sequence_previews"
+  },
+  "history": {
+    "accuracy": [
+      0.2616080641746521,
+      0.5830138325691223,
+      0.819968044757843,
+      0.8708732724189758,
+      0.8725506663322449,
+      0.8875132203102112,
+      0.875639021396637,
+      0.8936901688575745
+    ],
+    "loss": [
+      3.082070827484131,
+      1.4396939277648926,
+      0.7434355616569519,
+      0.5137171149253845,
+      0.465131551027298,
+      0.3952517509460449,
+      0.41752734780311584,
+      0.3523826599121094
+    ],
+    "val_accuracy": [
+      0.3887113630771637,
+      0.8077742457389832,
+      0.8527688980102539,
+      0.8711395263671875,
+      0.9165334701538086,
+      0.8718050122261047,
+      0.8896431922912598,
+      0.896698534488678
+    ],
+    "val_loss": [
+      2.183462381362915,
+      0.8627145290374756,
+      0.594447672367096,
+      0.5115285515785217,
+      0.33329641819000244,
+      0.4081735908985138,
+      0.39996662735939026,
+      0.36258527636528015
+    ]
+  },
+  "test": [
+    0.3444230258464813,
+    0.9014909267425537
+  ],
+  "diagnostics": {
+    "frame_accuracy": 0.8932374866879659,
+    "silence_fraction_truth": 0.2711661341853035,
+    "silence_fraction_predicted": 0.2235090521831736,
+    "note_only_accuracy": 0.9428310502283105,
+    "note_within_one_semitone": 0.9475799086757991,
+    "mean_semitone_error_for_predicted_notes": 0.4429266467065868,
+    "unique_predicted_classes": 38,
+    "top_predictions": [
+      {
+        "label": "silence",
+        "fraction": 0.2235
+      },
+      {
+        "label": "midi_44",
+        "fraction": 0.0619
+      },
+      {
+        "label": "midi_54",
+        "fraction": 0.0611
+      },
+      {
+        "label": "midi_53",
+        "fraction": 0.0551
+      },
+      {
+        "label": "midi_71",
+        "fraction": 0.0378
+      },
+      {
+        "label": "midi_63",
+        "fraction": 0.0353
+      },
+      {
+        "label": "midi_57",
+        "fraction": 0.0323
+      },
+      {
+        "label": "midi_46",
+        "fraction": 0.0323
+      },
+      {
+        "label": "midi_65",
+        "fraction": 0.0323
+      },
+      {
+        "label": "midi_47",
+        "fraction": 0.0277
+      }
+    ],
+    "samples": [
+      {
+        "truth": [
+          {
+            "label": "silence",
+            "start_seconds": 0.0,
+            "end_seconds": 0.256
+          },
+          {
+            "label": "midi_63",
+            "start_seconds": 0.256,
+            "end_seconds": 0.688
+          },
+          {
+            "label": "silence",
+            "start_seconds": 0.688,
+            "end_seconds": 0.968
+          },
+          {
+            "label": "midi_56",
+            "start_seconds": 0.968,
+            "end_seconds": 1.464
+          },
+          {
+            "label": "silence",
+            "start_seconds": 1.464,
+            "end_seconds": 1.624
+          },
+          {
+            "label": "midi_46",
+            "start_seconds": 1.624,
+            "end_seconds": 2.112
+          },
+          {
+            "label": "silence",
+            "start_seconds": 2.112,
+            "end_seconds": 2.184
+          },
+          {
+            "label": "midi_47",
+            "start_seconds": 2.184,
+            "end_seconds": 2.504
+          }
+        ],
+        "prediction": [
+          {
+            "label": "silence",
+            "start_seconds": 0.0,
+            "end_seconds": 0.264
+          },
+          {
+            "label": "midi_63",
+            "start_seconds": 0.264,
+            "end_seconds": 0.76
+          },
+          {
+            "label": "silence",
+            "start_seconds": 0.76,
+            "end_seconds": 0.968
+          },
+          {
+            "label": "midi_56",
+            "start_seconds": 0.968,
+            "end_seconds": 1.56
+          },
+          {
+            "label": "silence",
+            "start_seconds": 1.56,
+            "end_seconds": 1.624
+          },
+          {
+            "label": "midi_46",
+            "start_seconds": 1.624,
+            "end_seconds": 2.184
+          },
+          {
+            "label": "midi_47",
+            "start_seconds": 2.184,
+            "end_seconds": 2.504
+          }
+        ]
+      },
+      {
+        "truth": [
+          {
+            "label": "silence",
+            "start_seconds": 0.0,
+            "end_seconds": 0.176
+          },
+          {
+            "label": "midi_54",
+            "start_seconds": 0.176,
+            "end_seconds": 0.792
+          },
+          {
+            "label": "silence",
+            "start_seconds": 0.792,
+            "end_seconds": 0.92
+          },
+          {
+            "label": "midi_65",
+            "start_seconds": 0.92,
+            "end_seconds": 1.32
+          },
+          {
+            "label": "silence",
+            "start_seconds": 1.32,
+            "end_seconds": 1.624
+          },
+          {
+            "label": "midi_70",
+            "start_seconds": 1.624,
+            "end_seconds": 2.336
+          },
+          {
+            "label": "silence",
+            "start_seconds": 2.336,
+            "end_seconds": 2.504
+          }
+        ],
+        "prediction": [
+          {
+            "label": "silence",
+            "start_seconds": 0.0,
+            "end_seconds": 0.168
+          },
+          {
+            "label": "midi_54",
+            "start_seconds": 0.168,
+            "end_seconds": 0.84
+          },
+          {
+            "label": "silence",
+            "start_seconds": 0.84,
+            "end_seconds": 0.92
+          },
+          {
+            "label": "midi_65",
+            "start_seconds": 0.92,
+            "end_seconds": 1.488
+          },
+          {
+            "label": "silence",
+            "start_seconds": 1.488,
+            "end_seconds": 1.616
+          },
+          {
+            "label": "midi_70",
+            "start_seconds": 1.616,
+            "end_seconds": 2.488
+          },
+          {
+            "label": "silence",
+            "start_seconds": 2.488,
+            "end_seconds": 2.504
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,170 @@
+{
+  "config": {
+    "epochs": 4,
+    "batch_size": 2,
+    "train_batches": 20,
+    "val_batches": 5,
+    "test_batches": 5,
+    "save_model": "sequence_pitch_model.keras",
+    "phrase_seconds": 2.0,
+    "architecture": "raw_tcn",
+    "frequency_features": "flatten",
+    "learning_rate": 0.005,
+    "dropout": 0.2,
+    "silence_weight": 1.0,
+    "transition_weight": 1.0,
+    "transition_radius": 2,
+    "feature_type": "raw",
+    "augment": true,
+    "patience": 0,
+    "sample_predictions": 2,
+    "results_json": ".\\experiments\\raw_tcn_initial.json",
+    "tinysol_dir": null,
+    "nsynth_dir": null,
+    "real_sample_probability": 0.0,
+    "no_save": true,
+    "preview_only": false,
+    "write_previews": 0,
+    "preview_dir": "sequence_previews"
+  },
+  "history": {
+    "accuracy": [
+      0.24120000004768372,
+      0.25210002064704895,
+      0.261400043964386,
+      0.24700000882148743
+    ],
+    "loss": [
+      4.381265163421631,
+      3.5475831031799316,
+      3.170997142791748,
+      3.1905500888824463
+    ],
+    "val_accuracy": [
+      0.2704000174999237,
+      0.24560001492500305,
+      0.26479998230934143,
+      0.30720001459121704
+    ],
+    "val_loss": [
+      5.524401664733887,
+      15.621110916137695,
+      14.69000244140625,
+      10.10417652130127
+    ]
+  },
+  "test": [
+    10.378637313842773,
+    0.2815999984741211
+  ],
+  "diagnostics": {
+    "frame_accuracy": 0.2864,
+    "silence_fraction_truth": 0.2864,
+    "silence_fraction_predicted": 1.0,
+    "note_only_accuracy": 0.0,
+    "note_within_one_semitone": 0.0,
+    "mean_semitone_error_for_predicted_notes": null,
+    "unique_predicted_classes": 1,
+    "onset_mae_ms": 2000.0,
+    "offset_mae_ms": 2000.0,
+    "onsets_within_40ms": 0.0,
+    "offsets_within_40ms": 0.0,
+    "top_predictions": [
+      {
+        "label": "silence",
+        "fraction": 1.0
+      }
+    ],
+    "samples": [
+      {
+        "truth": [
+          {
+            "label": "silence",
+            "start_seconds": 0.0,
+            "end_seconds": 0.256
+          },
+          {
+            "label": "midi_63",
+            "start_seconds": 0.256,
+            "end_seconds": 0.688
+          },
+          {
+            "label": "silence",
+            "start_seconds": 0.688,
+            "end_seconds": 0.968
+          },
+          {
+            "label": "midi_56",
+            "start_seconds": 0.968,
+            "end_seconds": 1.464
+          },
+          {
+            "label": "silence",
+            "start_seconds": 1.464,
+            "end_seconds": 1.624
+          },
+          {
+            "label": "midi_46",
+            "start_seconds": 1.624,
+            "end_seconds": 2.0
+          }
+        ],
+        "prediction": [
+          {
+            "label": "silence",
+            "start_seconds": 0.0,
+            "end_seconds": 2.0
+          }
+        ]
+      },
+      {
+        "truth": [
+          {
+            "label": "silence",
+            "start_seconds": 0.0,
+            "end_seconds": 0.176
+          },
+          {
+            "label": "midi_47",
+            "start_seconds": 0.176,
+            "end_seconds": 0.704
+          },
+          {
+            "label": "silence",
+            "start_seconds": 0.704,
+            "end_seconds": 0.8
+          },
+          {
+            "label": "midi_54",
+            "start_seconds": 0.8,
+            "end_seconds": 1.416
+          },
+          {
+            "label": "silence",
+            "start_seconds": 1.416,
+            "end_seconds": 1.552
+          },
+          {
+            "label": "midi_65",
+            "start_seconds": 1.552,
+            "end_seconds": 1.944
+          },
+          {
+            "label": "silence",
+            "start_seconds": 1.944,
+            "end_seconds": 2.0
+          }
+        ],
+        "prediction": [
+          {
+            "label": "silence",
+            "start_seconds": 0.0,
+            "end_seconds": 2.0
+          }
+        ]
+      }
+    ]
+  },
+  "nsynth_test": null,
+  "nsynth_diagnostics": null
+}
