@@ -1,4 +1,4 @@
-﻿"""
+"""
 Frame-wise pitch transcription starter for generated note sequences.
 
 This is closer to transcription than cnn_pitch_pipeline.py:
@@ -30,6 +30,7 @@ HOP_LENGTH = 128
 MIDI_NOTES = np.arange(36, 73)  # C2..C5
 SILENCE_CLASS = 0
 NUM_CLASSES = len(MIDI_NOTES) + 1
+CQT_SILENCE_RMS = 5e-4
 
 
 def midi_to_class(midi_note):
@@ -67,6 +68,12 @@ def augment_phrase(audio, rng):
 
 
 def audio_to_features(audio, feature_type="cqt"):
+    audio = np.asarray(audio, dtype=np.float32)
+    rms = float(np.sqrt(np.mean(audio**2))) if audio.size else 0.0
+    if rms < CQT_SILENCE_RMS:
+        frame_count = 1 + len(audio) // HOP_LENGTH
+        frequency_bins = 98 if feature_type == "cqt" else 1 + N_FFT // 2
+        return np.zeros((frequency_bins, frame_count, 1), dtype=np.float32)
     if feature_type == "cqt":
         # Two bins per semitone make pitch intervals uniform across octaves.
         spec = librosa.cqt(
@@ -111,6 +118,31 @@ def render_sequence(soundfont_path, rng, phrase_seconds=PHRASE_SECONDS):
     return normalize(audio), events
 
 
+def render_hard_negative(rng, phrase_seconds=PHRASE_SECONDS):
+    """Create silence/background examples that must never become MIDI notes."""
+    samples = int(SR * phrase_seconds)
+    kind = int(rng.integers(0, 4))
+    if kind == 0:
+        return np.zeros(samples, dtype=np.float32), []
+
+    amplitude = float(10 ** rng.uniform(-4.0, -1.3))
+    noise = rng.normal(0.0, 1.0, samples).astype(np.float32)
+    if kind == 1:
+        audio = noise
+    elif kind == 2:
+        # Low-frequency electrical/room hum plus a small noise floor.
+        t = np.arange(samples, dtype=np.float32) / SR
+        frequency = float(rng.choice([50.0, 60.0]))
+        audio = np.sin(2 * np.pi * frequency * t).astype(np.float32) + 0.15 * noise
+    else:
+        # Smoothed/colored noise is closer to ventilation and distant traffic.
+        kernel = np.ones(int(rng.integers(8, 65)), dtype=np.float32)
+        kernel /= np.sum(kernel)
+        audio = np.convolve(noise, kernel, mode="same").astype(np.float32)
+
+    audio *= amplitude / (float(np.sqrt(np.mean(audio**2))) + 1e-8)
+    return np.clip(audio, -1.0, 1.0).astype(np.float32), []
+
 def frame_labels(num_frames, events):
     labels = np.zeros(num_frames, dtype=np.int32)
     frame_times = librosa.frames_to_time(np.arange(num_frames), sr=SR, hop_length=HOP_LENGTH)
@@ -128,7 +160,7 @@ def audio_to_model_input(audio, feature_type="cqt"):
 
 
 class GeneratedSequenceData(keras.utils.Sequence):
-    def __init__(self, batches, batch_size, soundfont_path, seed, phrase_seconds, augment=True, silence_weight=1.0, transition_weight=1.0, transition_radius=2, feature_type="cqt", sample_index=None, real_probability=0.0, **kwargs):
+    def __init__(self, batches, batch_size, soundfont_path, seed, phrase_seconds, augment=True, silence_weight=1.0, transition_weight=1.0, transition_radius=2, feature_type="cqt", sample_index=None, real_probability=0.0, hard_negative_probability=0.0, **kwargs):
         super().__init__(**kwargs)
         self.batches = batches
         self.batch_size = batch_size
@@ -142,6 +174,7 @@ class GeneratedSequenceData(keras.utils.Sequence):
         self.feature_type = feature_type
         self.sample_index = sample_index
         self.real_probability = real_probability
+        self.hard_negative_probability = hard_negative_probability
 
     def __len__(self):
         return self.batches
@@ -149,13 +182,19 @@ class GeneratedSequenceData(keras.utils.Sequence):
     def __getitem__(self, _):
         X, y = [], []
         for _ in range(self.batch_size):
-            if self.sample_index and self.rng.random() < self.real_probability:
+            hard_negative = (
+                self.hard_negative_probability > 0
+                and self.rng.random() < self.hard_negative_probability
+            )
+            if hard_negative:
+                audio, events = render_hard_negative(self.rng, self.phrase_seconds)
+            elif self.sample_index and self.rng.random() < self.real_probability:
                 audio, events = render_tinysol_sequence(
                     self.sample_index, self.rng, self.phrase_seconds, SR,
                 )
             else:
                 audio, events = render_sequence(self.soundfont_path, self.rng, self.phrase_seconds)
-            if self.augment:
+            if self.augment and not hard_negative:
                 audio = augment_phrase(audio, self.rng)
             model_input = audio_to_model_input(audio, self.feature_type)
             num_frames = int(np.ceil(len(audio) / HOP_LENGTH)) if self.feature_type == "raw" else model_input.shape[1]
@@ -310,8 +349,12 @@ def diagnose_model(model, data, sample_count=3):
         "frame_accuracy": float(np.mean(prediction == truth)),
         "silence_fraction_truth": float(np.mean(truth == SILENCE_CLASS)),
         "silence_fraction_predicted": float(np.mean(prediction == SILENCE_CLASS)),
-        "note_only_accuracy": float(np.mean(prediction[note_mask] == truth[note_mask])),
-        "note_within_one_semitone": float(np.mean(semitone_error <= 1)),
+        "note_only_accuracy": (
+            float(np.mean(prediction[note_mask] == truth[note_mask])) if np.any(note_mask) else None
+        ),
+        "note_within_one_semitone": (
+            float(np.mean(semitone_error <= 1)) if len(semitone_error) else None
+        ),
         "mean_semitone_error_for_predicted_notes": float(np.mean(
             semitone_error[semitone_error < 999]
         )) if np.any(semitone_error < 999) else None,
@@ -414,6 +457,8 @@ def main():
     parser.add_argument("--tinysol-dir")
     parser.add_argument("--nsynth-dir")
     parser.add_argument("--real-sample-probability", type=float, default=0.0)
+    parser.add_argument("--hard-negative-probability", type=float, default=0.0)
+    parser.add_argument("--hard-negative-test-batches", type=int, default=8)
     parser.add_argument("--no-save", action="store_true")
     parser.add_argument("--preview-only", action="store_true")
     parser.add_argument("--write-previews", type=int, default=0)
@@ -456,7 +501,8 @@ def main():
         transition_weight=args.transition_weight,
         transition_radius=args.transition_radius,
         sample_index=train_sample_index,
-        real_probability=args.real_sample_probability, **common,
+        real_probability=args.real_sample_probability,
+        hard_negative_probability=args.hard_negative_probability, **common,
     )
     # Validation and test stay fixed and clean so experiments are comparable.
     val = GeneratedSequenceData(
@@ -516,6 +562,17 @@ def main():
     diagnostics = diagnose_model(model, diagnostic_data, args.sample_predictions)
     print("diagnostics:", json.dumps(diagnostics, indent=2))
 
+    hard_negative_data = GeneratedSequenceData(
+        args.hard_negative_test_batches, seed=500, augment=False,
+        hard_negative_probability=1.0, **common,
+    )
+    hard_negative_test_result = model.evaluate(hard_negative_data, verbose=0)
+    hard_negative_diagnostics = diagnose_model(
+        model, hard_negative_data, min(args.sample_predictions, 3),
+    )
+    print("hard_negative_test:", hard_negative_test_result)
+    print("hard_negative_diagnostics:", json.dumps(hard_negative_diagnostics, indent=2))
+
     nsynth_test_result = nsynth_diagnostics = None
     if nsynth_sample_index:
         nsynth_data = GeneratedSequenceData(
@@ -532,6 +589,8 @@ def main():
         "history": {key: [float(value) for value in values] for key, values in history.history.items()},
         "test": [float(value) for value in test_result],
         "diagnostics": diagnostics,
+        "hard_negative_test": [float(value) for value in hard_negative_test_result],
+        "hard_negative_diagnostics": hard_negative_diagnostics,
         "nsynth_test": [float(value) for value in nsynth_test_result] if nsynth_test_result else None,
         "nsynth_diagnostics": nsynth_diagnostics,
     }

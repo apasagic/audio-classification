@@ -324,6 +324,8 @@ best_cnn_model.keras
 # Generated Python caches and local training artifacts
 __pycache__/
 *.py[cod]
+.pytest_cache/
+pytest-cache-files-*/
 # Local audio/data/model artifacts
 Audio*.ogg
 *.keras
@@ -340,3 +342,5 @@ pitch_to_midi/*.json
 
 # Downloaded public datasets
 pitch_to_midi/datasets/
+# Temporary portable production model; move to an artifact registry during MLOps setup
+!pitch_to_midi/cqt_gru_best.keras

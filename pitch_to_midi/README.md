@@ -130,7 +130,11 @@ A tiny Ableton/FL-style piano-roll display is included:
 
 ![Live Pitch to MIDI piano-roll GUI](docs/live_piano_roll.png)
 
-It listens to the microphone, estimates pitch from C2 to C5, converts it to MIDI, and draws detected notes on a scrolling grid. Use **Start Recording**, **Stop Recording**, and **Replay** to capture detected note chunks. Use **Fit replay** to keep the whole phrase zoomed out during replay while a blue playhead line moves left to right. Use **Replay BPM** to slow down or speed up playback, where 120 BPM is normal speed. Recording uses frequent 50 ms chunks plus a rolling analysis buffer, so notes flow live while low notes still get enough context. Small consecutive detector chunks are grouped into longer MIDI-like notes for display and replay. Stop freezes the captured phrase on the grid, and Replay animates the notes again while synthesizing them with a simple internal Piano/Violin/Flute/Synth timbre. This is still a baseline `librosa.yin()` detector, not the neural net. The UI is meant as a clear first visual layer that we can later connect to the trained model, SoundFont playback, or MIDI output. **Save** and **Load** store/reopen JSON sessions containing raw detected pitch chunks plus current UI settings, so grouping can still be adjusted after loading.
+The GUI uses the trained **CQT + Bi-GRU** model by default and falls back to librosa YIN if the model artifact is unavailable. It automatically selects a physical microphone where possible, runs a startup RMS test, and shows the live RMS beside the configurable silence gate. Recent-chunk RMS, neural confidence, and the learned silence class all have to accept a frame before it becomes a note.
+
+Use **Start Recording**, **Stop Recording**, and **Replay** for microphone capture. **Load Audio** accepts WAV, FLAC, OGG, or MP3 recordings and runs whole-file neural inference in a background thread; **Play Source** plays the original file, while **Replay** synthesizes the detected piano roll. The file picker starts in sequence_previews, which contains generated WAV/JSON pairs with known note events. **Save** and **Load** handle editable JSON piano-roll sessions.
+
+The toolbar is split into responsive rows and the six tuning sliders use a 3-by-2 grid, so the piano roll remains usable on smaller screens. The detector remains monophonic and covers MIDI C2-C5.
 
 
 ## GUI and tuning
@@ -262,3 +266,18 @@ The existing CQT pipeline remains the stronger baseline. The raw TCN/BiGRU path 
 ## Completed GPU CQT + BiGRU model
 
 The full WSL2 GPU training run is complete. The saved `cqt_gru_best.keras` checkpoint is now the default neural detector used by `live_piano_roll.py`. It achieved 93.1% diagnostic frame accuracy and 95.7% note-only accuracy on TinySOL fold 1; NSynth evaluation-only diagnostic accuracy was 85.9% frame-wise and 87.3% on note frames. See the main README for the full table and learning curves.
+## Hard-negative candidate
+
+A separate CQT + Bi-GRU candidate was trained with 15% pure silence, broadband noise, 50/60 Hz hum, and colored-noise examples. It ran for 39 epochs and selected epoch 32 by validation loss.
+
+| Evaluation | Original model | Hard-negative candidate |
+|---|---:|---:|
+| TinySOL frame accuracy | 93.09% | 92.81% |
+| TinySOL note-frame accuracy | 95.75% | 95.67% |
+| NSynth frame accuracy | 85.95% | 84.91% |
+| NSynth note-frame accuracy | 87.28% | 86.30% |
+| Generated hard-negative accuracy | Not measured | 100.00% |
+
+The candidate is not promoted automatically: it solves the tested silence/noise behavior but loses about one percentage point on NSynth. Its metrics and learning curve are stored under experiments/cqt_gru_hard_negative.
+
+For remote-desktop use, microphone input works only when the remote client redirects a microphone and Windows exposes it as an input device. A Remoteaudio output device does not provide microphone samples. Recorded-file transcription does not require a microphone and runs in a process-isolated worker with a 120-second timeout.

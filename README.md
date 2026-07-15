@@ -307,3 +307,6 @@ Artifacts:
 - `pitch_to_midi/experiments/cqt_gru_gpu_full_curves.svg`: loss and accuracy curves.
 
 The remaining challenge is domain transfer to real microphone voice/whistling rather than validation overfitting. NSynth results improved substantially but still trail TinySOL, and neither isolated-note dataset fully represents continuous human vocal transitions.
+### Hard-negative robustness run
+
+A follow-up CQT + Bi-GRU candidate used 15% silence, broadband noise, electrical hum, and colored-noise training examples. It achieved 100% accuracy and 100% predicted silence on its generated negative-only test while retaining 92.81% TinySOL frame accuracy and 95.67% TinySOL note-frame accuracy. NSynth frame accuracy decreased from 85.95% to 84.91%, so the candidate remains experimental until it is compared on versioned real-microphone recordings.

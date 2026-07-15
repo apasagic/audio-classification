@@ -1,0 +1,1324 @@
+{
+  "config": {
+    "epochs": 40,
+    "batch_size": 8,
+    "train_batches": 200,
+    "val_batches": 40,
+    "test_batches": 40,
+    "save_model": "./cqt_gru_hard_negative_final.keras",
+    "phrase_seconds": 2.5,
+    "architecture": "cnn_gru",
+    "frequency_features": "flatten",
+    "learning_rate": 0.005,
+    "dropout": 0.2,
+    "silence_weight": 1.0,
+    "transition_weight": 1.0,
+    "transition_radius": 2,
+    "feature_type": "cqt",
+    "augment": true,
+    "patience": 7,
+    "reduce_lr_patience": 3,
+    "min_learning_rate": 1e-05,
+    "checkpoint_model": "./cqt_gru_hard_negative_best.keras",
+    "csv_log": "./experiments/cqt_gru_hard_negative_history.csv",
+    "history_svg": "./experiments/cqt_gru_hard_negative_curves.svg",
+    "sample_predictions": 5,
+    "results_json": "./experiments/cqt_gru_hard_negative.json",
+    "tinysol_dir": "./datasets/tinysol",
+    "nsynth_dir": "./datasets/nsynth_test/nsynth-test",
+    "real_sample_probability": 0.5,
+    "hard_negative_probability": 0.15,
+    "hard_negative_test_batches": 20,
+    "no_save": false,
+    "preview_only": false,
+    "write_previews": 0,
+    "preview_dir": "sequence_previews"
+  },
+  "history": {
+    "accuracy": [
+      0.6409602165222168,
+      0.8800759315490723,
+      0.8900759220123291,
+      0.898913562297821,
+      0.9022064805030823,
+      0.9036926031112671,
+      0.906198263168335,
+      0.9072104692459106,
+      0.9107887148857117,
+      0.912921130657196,
+      0.9160662889480591,
+      0.9172322750091553,
+      0.9198001623153687,
+      0.9177295565605164,
+      0.9196964502334595,
+      0.9195188283920288,
+      0.9223801493644714,
+      0.9250779747962952,
+      0.9247244000434875,
+      0.9226311445236206,
+      0.921124279499054,
+      0.9241213798522949,
+      0.9258490204811096,
+      0.9266052842140198,
+      0.9273065328598022,
+      0.9262021780014038,
+      0.9282272458076477,
+      0.9288696050643921,
+      0.9284220933914185,
+      0.9299837350845337,
+      0.9286935329437256,
+      0.9288217425346375,
+      0.929870069026947,
+      0.9307368993759155,
+      0.9294607639312744,
+      0.930540919303894,
+      0.9302636981010437,
+      0.9288383722305298,
+      0.9311979413032532
+    ],
+    "loss": [
+      1.4812910556793213,
+      0.3941527307033539,
+      0.34062182903289795,
+      0.30479440093040466,
+      0.2924630641937256,
+      0.2842879593372345,
+      0.2730414867401123,
+      0.27023887634277344,
+      0.25584980845451355,
+      0.2458675354719162,
+      0.23226042091846466,
+      0.23051021993160248,
+      0.22296501696109772,
+      0.22735220193862915,
+      0.21904467046260834,
+      0.22148431837558746,
+      0.21141360700130463,
+      0.20220373570919037,
+      0.20321235060691833,
+      0.20959675312042236,
+      0.2142529934644699,
+      0.2072087824344635,
+      0.20175452530384064,
+      0.20027393102645874,
+      0.19444093108177185,
+      0.19752013683319092,
+      0.19158846139907837,
+      0.1874644160270691,
+      0.18955528736114502,
+      0.18707352876663208,
+      0.18901421129703522,
+      0.18889902532100677,
+      0.18875913321971893,
+      0.18562519550323486,
+      0.18664436042308807,
+      0.1848471611738205,
+      0.18533779680728912,
+      0.18726466596126556,
+      0.18102885782718658
+    ],
+    "val_accuracy": [
+      0.8734824061393738,
+      0.8478235006332397,
+      0.8950279355049133,
+      0.9030848741531372,
+      0.9010981321334839,
+      0.9041233062744141,
+      0.9032249450683594,
+      0.8853434324264526,
+      0.9035744667053223,
+      0.9050319790840149,
+      0.9030951261520386,
+      0.8922723531723022,
+      0.9099041223526001,
+      0.903783917427063,
+      0.9041733741760254,
+      0.8981529474258423,
+      0.914516806602478,
+      0.9124299883842468,
+      0.9129393696784973,
+      0.9115914106369019,
+      0.9155950546264648,
+      0.9116512537002563,
+      0.9166831970214844,
+      0.9097542762756348,
+      0.9186601638793945,
+      0.9193590879440308,
+      0.9186900854110718,
+      0.9207268953323364,
+      0.9192991256713867,
+      0.9175020456314087,
+      0.9201276898384094,
+      0.9240315556526184,
+      0.9205070734024048,
+      0.9268170595169067,
+      0.9212460517883301,
+      0.9246807098388672,
+      0.9229232668876648,
+      0.9185601472854614,
+      0.9236223101615906
+    ],
+    "val_loss": [
+      0.4339691698551178,
+      0.43014246225357056,
+      0.3175792992115021,
+      0.28771698474884033,
+      0.28339534997940063,
+      0.27942216396331787,
+      0.28406280279159546,
+      0.32931581139564514,
+      0.28290653228759766,
+      0.265735924243927,
+      0.27653443813323975,
+      0.30709904432296753,
+      0.2548535466194153,
+      0.2622780501842499,
+      0.2664310336112976,
+      0.28212204575538635,
+      0.23733726143836975,
+      0.25205209851264954,
+      0.22964505851268768,
+      0.22854861617088318,
+      0.22778689861297607,
+      0.25345927476882935,
+      0.23026368021965027,
+      0.2512354552745819,
+      0.2244173288345337,
+      0.2230348140001297,
+      0.22415833175182343,
+      0.2143888920545578,
+      0.2249464988708496,
+      0.22294700145721436,
+      0.2212323397397995,
+      0.2083791196346283,
+      0.22251681983470917,
+      0.212060809135437,
+      0.21286574006080627,
+      0.2115740031003952,
+      0.21581050753593445,
+      0.2289065420627594,
+      0.21950185298919678
+    ],
+    "learning_rate": [
+      0.004999999888241291,
+      0.004999999888241291,
+      0.004999999888241291,
+      0.004999999888241291,
+      0.004999999888241291,
+      0.004999999888241291,
+      0.004999999888241291,
+      0.004999999888241291,
+      0.004999999888241291,
+      0.0024999999441206455,
+      0.0024999999441206455,
+      0.0024999999441206455,
+      0.0024999999441206455,
+      0.0024999999441206455,
+      0.0024999999441206455,
+      0.0024999999441206455,
+      0.0012499999720603228,
+      0.0012499999720603228,
+      0.0012499999720603228,
+      0.0012499999720603228,
+      0.0012499999720603228,
+      0.0012499999720603228,
+      0.0012499999720603228,
+      0.0012499999720603228,
+      0.0006249999860301614,
+      0.0006249999860301614,
+      0.0006249999860301614,
+      0.0006249999860301614,
+      0.0006249999860301614,
+      0.0006249999860301614,
+      0.0006249999860301614,
+      0.0003124999930150807,
+      0.0003124999930150807,
+      0.0003124999930150807,
+      0.0003124999930150807,
+      0.00015624999650754035,
+      0.00015624999650754035,
+      0.00015624999650754035,
+      7.812499825377017e-05
+    ]
+  },
+  "test": [
+    0.20352323353290558,
+    0.9257088899612427
+  ],
+  "diagnostics": {
+    "frame_accuracy": 0.9280750798722045,
+    "silence_fraction_truth": 0.24956070287539936,
+    "silence_fraction_predicted": 0.23539337060702875,
+    "note_only_accuracy": 0.9567079985099249,
+    "note_within_one_semitone": 0.9575062529934543,
+    "mean_semitone_error_for_predicted_notes": 0.1253700108765988,
+    "unique_predicted_classes": 38,
+    "onset_mae_ms": 60.648854961832065,
+    "offset_mae_ms": 111.10222222222224,
+    "onsets_within_40ms": 0.8120229007633588,
+    "offsets_within_40ms": 0.6277777777777778,
+    "top_predictions": [
+      {
+        "label": "silence",
+        "fraction": 0.2354
+      },
+      {
+        "label": "midi_63",
+        "fraction": 0.0272
+      },
+      {
+        "label": "midi_39",
+        "fraction": 0.0261
+      },
+      {
+        "label": "midi_71",
+        "fraction": 0.0253
+      },
+      {
+        "label": "midi_42",
+        "fraction": 0.0252
+      },
+      {
+        "label": "midi_50",
+        "fraction": 0.025
+      },
+      {
+        "label": "midi_43",
+        "fraction": 0.024
+      },
+      {
+        "label": "midi_49",
+        "fraction": 0.0234
+      },
+      {
+        "label": "midi_41",
+        "fraction": 0.0233
+      },
+      {
+        "label": "midi_54",
+        "fraction": 0.0232
+      }
+    ],
+    "samples": [
+      {
+        "truth": [
+          {
+            "label": "silence",
+            "start_seconds": 0.0,
+            "end_seconds": 0.224
+          },
+          {
+            "label": "midi_63",
+            "start_seconds": 0.224,
+            "end_seconds": 0.568
+          },
+          {
+            "label": "silence",
+            "start_seconds": 0.568,
+            "end_seconds": 0.68
+          },
+          {
+            "label": "midi_41",
+            "start_seconds": 0.68,
+            "end_seconds": 1.208
+          },
+          {
+            "label": "silence",
+            "start_seconds": 1.208,
+            "end_seconds": 1.312
+          },
+          {
+            "label": "midi_68",
+            "start_seconds": 1.312,
+            "end_seconds": 2.112
+          },
+          {
+            "label": "silence",
+            "start_seconds": 2.112,
+            "end_seconds": 2.24
+          },
+          {
+            "label": "midi_39",
+            "start_seconds": 2.24,
+            "end_seconds": 2.424
+          },
+          {
+            "label": "silence",
+            "start_seconds": 2.424,
+            "end_seconds": 2.504
+          }
+        ],
+        "prediction": [
+          {
+            "label": "silence",
+            "start_seconds": 0.0,
+            "end_seconds": 0.2
+          },
+          {
+            "label": "midi_63",
+            "start_seconds": 0.2,
+            "end_seconds": 0.632
+          },
+          {
+            "label": "silence",
+            "start_seconds": 0.632,
+            "end_seconds": 0.68
+          },
+          {
+            "label": "midi_41",
+            "start_seconds": 0.68,
+            "end_seconds": 1.232
+          },
+          {
+            "label": "silence",
+            "start_seconds": 1.232,
+            "end_seconds": 1.304
+          },
+          {
+            "label": "midi_68",
+            "start_seconds": 1.304,
+            "end_seconds": 2.096
+          },
+          {
+            "label": "silence",
+            "start_seconds": 2.096,
+            "end_seconds": 2.184
+          },
+          {
+            "label": "midi_39",
+            "start_seconds": 2.184,
+            "end_seconds": 2.208
+          },
+          {
+            "label": "silence",
+            "start_seconds": 2.208,
+            "end_seconds": 2.232
+          },
+          {
+            "label": "midi_39",
+            "start_seconds": 2.232,
+            "end_seconds": 2.504
+          }
+        ]
+      },
+      {
+        "truth": [
+          {
+            "label": "silence",
+            "start_seconds": 0.0,
+            "end_seconds": 0.088
+          },
+          {
+            "label": "midi_66",
+            "start_seconds": 0.088,
+            "end_seconds": 0.48
+          },
+          {
+            "label": "silence",
+            "start_seconds": 0.48,
+            "end_seconds": 0.744
+          },
+          {
+            "label": "midi_70",
+            "start_seconds": 0.744,
+            "end_seconds": 1.448
+          },
+          {
+            "label": "midi_63",
+            "start_seconds": 1.448,
+            "end_seconds": 1.808
+          },
+          {
+            "label": "silence",
+            "start_seconds": 1.808,
+            "end_seconds": 1.912
+          },
+          {
+            "label": "midi_39",
+            "start_seconds": 1.912,
+            "end_seconds": 2.264
+          },
+          {
+            "label": "silence",
+            "start_seconds": 2.264,
+            "end_seconds": 2.504
+          }
+        ],
+        "prediction": [
+          {
+            "label": "silence",
+            "start_seconds": 0.0,
+            "end_seconds": 0.08
+          },
+          {
+            "label": "midi_66",
+            "start_seconds": 0.08,
+            "end_seconds": 0.488
+          },
+          {
+            "label": "silence",
+            "start_seconds": 0.488,
+            "end_seconds": 0.728
+          },
+          {
+            "label": "midi_70",
+            "start_seconds": 0.728,
+            "end_seconds": 1.424
+          },
+          {
+            "label": "silence",
+            "start_seconds": 1.424,
+            "end_seconds": 1.432
+          },
+          {
+            "label": "midi_63",
+            "start_seconds": 1.432,
+            "end_seconds": 1.744
+          },
+          {
+            "label": "silence",
+            "start_seconds": 1.744,
+            "end_seconds": 1.904
+          },
+          {
+            "label": "midi_39",
+            "start_seconds": 1.904,
+            "end_seconds": 2.216
+          },
+          {
+            "label": "silence",
+            "start_seconds": 2.216,
+            "end_seconds": 2.504
+          }
+        ]
+      },
+      {
+        "truth": [
+          {
+            "label": "silence",
+            "start_seconds": 0.0,
+            "end_seconds": 0.072
+          },
+          {
+            "label": "midi_57",
+            "start_seconds": 0.072,
+            "end_seconds": 0.616
+          },
+          {
+            "label": "midi_52",
+            "start_seconds": 0.616,
+            "end_seconds": 0.8
+          },
+          {
+            "label": "silence",
+            "start_seconds": 0.8,
+            "end_seconds": 0.872
+          },
+          {
+            "label": "midi_58",
+            "start_seconds": 0.872,
+            "end_seconds": 1.128
+          },
+          {
+            "label": "midi_37",
+            "start_seconds": 1.128,
+            "end_seconds": 1.432
+          },
+          {
+            "label": "midi_51",
+            "start_seconds": 1.432,
+            "end_seconds": 1.896
+          },
+          {
+            "label": "silence",
+            "start_seconds": 1.896,
+            "end_seconds": 2.112
+          },
+          {
+            "label": "midi_59",
+            "start_seconds": 2.112,
+            "end_seconds": 2.352
+          },
+          {
+            "label": "silence",
+            "start_seconds": 2.352,
+            "end_seconds": 2.504
+          }
+        ],
+        "prediction": [
+          {
+            "label": "silence",
+            "start_seconds": 0.0,
+            "end_seconds": 0.072
+          },
+          {
+            "label": "midi_57",
+            "start_seconds": 0.072,
+            "end_seconds": 0.6
+          },
+          {
+            "label": "silence",
+            "start_seconds": 0.6,
+            "end_seconds": 0.616
+          },
+          {
+            "label": "midi_52",
+            "start_seconds": 0.616,
+            "end_seconds": 0.768
+          },
+          {
+            "label": "silence",
+            "start_seconds": 0.768,
+            "end_seconds": 0.872
+          },
+          {
+            "label": "midi_58",
+            "start_seconds": 0.872,
+            "end_seconds": 1.096
+          },
+          {
+            "label": "midi_37",
+            "start_seconds": 1.096,
+            "end_seconds": 1.384
+          },
+          {
+            "label": "silence",
+            "start_seconds": 1.384,
+            "end_seconds": 1.432
+          },
+          {
+            "label": "midi_51",
+            "start_seconds": 1.432,
+            "end_seconds": 1.888
+          },
+          {
+            "label": "silence",
+            "start_seconds": 1.888,
+            "end_seconds": 2.096
+          },
+          {
+            "label": "midi_59",
+            "start_seconds": 2.096,
+            "end_seconds": 2.4
+          },
+          {
+            "label": "silence",
+            "start_seconds": 2.4,
+            "end_seconds": 2.504
+          }
+        ]
+      },
+      {
+        "truth": [
+          {
+            "label": "silence",
+            "start_seconds": 0.0,
+            "end_seconds": 0.248
+          },
+          {
+            "label": "midi_71",
+            "start_seconds": 0.248,
+            "end_seconds": 0.864
+          },
+          {
+            "label": "silence",
+            "start_seconds": 0.864,
+            "end_seconds": 0.872
+          },
+          {
+            "label": "midi_37",
+            "start_seconds": 0.872,
+            "end_seconds": 1.456
+          },
+          {
+            "label": "silence",
+            "start_seconds": 1.456,
+            "end_seconds": 1.616
+          },
+          {
+            "label": "midi_47",
+            "start_seconds": 1.616,
+            "end_seconds": 1.88
+          },
+          {
+            "label": "silence",
+            "start_seconds": 1.88,
+            "end_seconds": 2.12
+          },
+          {
+            "label": "midi_44",
+            "start_seconds": 2.12,
+            "end_seconds": 2.504
+          }
+        ],
+        "prediction": [
+          {
+            "label": "silence",
+            "start_seconds": 0.0,
+            "end_seconds": 0.248
+          },
+          {
+            "label": "midi_71",
+            "start_seconds": 0.248,
+            "end_seconds": 0.832
+          },
+          {
+            "label": "silence",
+            "start_seconds": 0.832,
+            "end_seconds": 0.872
+          },
+          {
+            "label": "midi_37",
+            "start_seconds": 0.872,
+            "end_seconds": 1.384
+          },
+          {
+            "label": "silence",
+            "start_seconds": 1.384,
+            "end_seconds": 1.568
+          },
+          {
+            "label": "midi_47",
+            "start_seconds": 1.568,
+            "end_seconds": 1.856
+          },
+          {
+            "label": "silence",
+            "start_seconds": 1.856,
+            "end_seconds": 2.096
+          },
+          {
+            "label": "midi_44",
+            "start_seconds": 2.096,
+            "end_seconds": 2.504
+          }
+        ]
+      },
+      {
+        "truth": [
+          {
+            "label": "silence",
+            "start_seconds": 0.0,
+            "end_seconds": 0.184
+          },
+          {
+            "label": "midi_47",
+            "start_seconds": 0.184,
+            "end_seconds": 0.992
+          },
+          {
+            "label": "midi_59",
+            "start_seconds": 0.992,
+            "end_seconds": 1.784
+          },
+          {
+            "label": "silence",
+            "start_seconds": 1.784,
+            "end_seconds": 1.888
+          },
+          {
+            "label": "midi_65",
+            "start_seconds": 1.888,
+            "end_seconds": 2.504
+          }
+        ],
+        "prediction": [
+          {
+            "label": "silence",
+            "start_seconds": 0.0,
+            "end_seconds": 0.144
+          },
+          {
+            "label": "midi_47",
+            "start_seconds": 0.144,
+            "end_seconds": 0.168
+          },
+          {
+            "label": "silence",
+            "start_seconds": 0.168,
+            "end_seconds": 0.176
+          },
+          {
+            "label": "midi_47",
+            "start_seconds": 0.176,
+            "end_seconds": 1.032
+          },
+          {
+            "label": "midi_59",
+            "start_seconds": 1.032,
+            "end_seconds": 1.744
+          },
+          {
+            "label": "silence",
+            "start_seconds": 1.744,
+            "end_seconds": 1.88
+          },
+          {
+            "label": "midi_65",
+            "start_seconds": 1.88,
+            "end_seconds": 2.504
+          }
+        ]
+      }
+    ]
+  },
+  "hard_negative_test": [
+    9.770961332833394e-05,
+    1.0
+  ],
+  "hard_negative_diagnostics": {
+    "frame_accuracy": 1.0,
+    "silence_fraction_truth": 1.0,
+    "silence_fraction_predicted": 1.0,
+    "note_only_accuracy": null,
+    "note_within_one_semitone": null,
+    "mean_semitone_error_for_predicted_notes": null,
+    "unique_predicted_classes": 1,
+    "onset_mae_ms": null,
+    "offset_mae_ms": null,
+    "onsets_within_40ms": null,
+    "offsets_within_40ms": null,
+    "top_predictions": [
+      {
+        "label": "silence",
+        "fraction": 1.0
+      }
+    ],
+    "samples": [
+      {
+        "truth": [
+          {
+            "label": "silence",
+            "start_seconds": 0.0,
+            "end_seconds": 2.504
+          }
+        ],
+        "prediction": [
+          {
+            "label": "silence",
+            "start_seconds": 0.0,
+            "end_seconds": 2.504
+          }
+        ]
+      },
+      {
+        "truth": [
+          {
+            "label": "silence",
+            "start_seconds": 0.0,
+            "end_seconds": 2.504
+          }
+        ],
+        "prediction": [
+          {
+            "label": "silence",
+            "start_seconds": 0.0,
+            "end_seconds": 2.504
+          }
+        ]
+      },
+      {
+        "truth": [
+          {
+            "label": "silence",
+            "start_seconds": 0.0,
+            "end_seconds": 2.504
+          }
+        ],
+        "prediction": [
+          {
+            "label": "silence",
+            "start_seconds": 0.0,
+            "end_seconds": 2.504
+          }
+        ]
+      }
+    ]
+  },
+  "nsynth_test": [
+    0.6587820649147034,
+    0.8366712331771851
+  ],
+  "nsynth_diagnostics": {
+    "frame_accuracy": 0.8491413738019169,
+    "silence_fraction_truth": 0.2566593450479233,
+    "silence_fraction_predicted": 0.26059305111821085,
+    "note_only_accuracy": 0.8630008193088257,
+    "note_within_one_semitone": 0.865243845110338,
+    "mean_semitone_error_for_predicted_notes": 0.8522610594513297,
+    "unique_predicted_classes": 38,
+    "onset_mae_ms": 52.58767772511848,
+    "offset_mae_ms": 103.9202657807309,
+    "onsets_within_40ms": 0.6056872037914692,
+    "offsets_within_40ms": 0.53156146179402,
+    "top_predictions": [
+      {
+        "label": "silence",
+        "fraction": 0.2606
+      },
+      {
+        "label": "midi_56",
+        "fraction": 0.0284
+      },
+      {
+        "label": "midi_59",
+        "fraction": 0.0253
+      },
+      {
+        "label": "midi_51",
+        "fraction": 0.0246
+      },
+      {
+        "label": "midi_70",
+        "fraction": 0.0245
+      },
+      {
+        "label": "midi_46",
+        "fraction": 0.0241
+      },
+      {
+        "label": "midi_39",
+        "fraction": 0.0237
+      },
+      {
+        "label": "midi_45",
+        "fraction": 0.0237
+      },
+      {
+        "label": "midi_53",
+        "fraction": 0.0235
+      },
+      {
+        "label": "midi_65",
+        "fraction": 0.023
+      }
+    ],
+    "samples": [
+      {
+        "truth": [
+          {
+            "label": "silence",
+            "start_seconds": 0.0,
+            "end_seconds": 0.232
+          },
+          {
+            "label": "midi_48",
+            "start_seconds": 0.232,
+            "end_seconds": 0.664
+          },
+          {
+            "label": "midi_37",
+            "start_seconds": 0.664,
+            "end_seconds": 0.904
+          },
+          {
+            "label": "silence",
+            "start_seconds": 0.904,
+            "end_seconds": 1.064
+          },
+          {
+            "label": "midi_48",
+            "start_seconds": 1.064,
+            "end_seconds": 1.352
+          },
+          {
+            "label": "silence",
+            "start_seconds": 1.352,
+            "end_seconds": 1.648
+          },
+          {
+            "label": "midi_38",
+            "start_seconds": 1.648,
+            "end_seconds": 2.096
+          },
+          {
+            "label": "midi_49",
+            "start_seconds": 2.096,
+            "end_seconds": 2.504
+          }
+        ],
+        "prediction": [
+          {
+            "label": "silence",
+            "start_seconds": 0.0,
+            "end_seconds": 0.192
+          },
+          {
+            "label": "midi_48",
+            "start_seconds": 0.192,
+            "end_seconds": 0.568
+          },
+          {
+            "label": "silence",
+            "start_seconds": 0.568,
+            "end_seconds": 0.6
+          },
+          {
+            "label": "midi_37",
+            "start_seconds": 0.6,
+            "end_seconds": 0.84
+          },
+          {
+            "label": "silence",
+            "start_seconds": 0.84,
+            "end_seconds": 1.024
+          },
+          {
+            "label": "midi_48",
+            "start_seconds": 1.024,
+            "end_seconds": 1.376
+          },
+          {
+            "label": "silence",
+            "start_seconds": 1.376,
+            "end_seconds": 1.656
+          },
+          {
+            "label": "midi_38",
+            "start_seconds": 1.656,
+            "end_seconds": 2.024
+          },
+          {
+            "label": "silence",
+            "start_seconds": 2.024,
+            "end_seconds": 2.048
+          },
+          {
+            "label": "midi_49",
+            "start_seconds": 2.048,
+            "end_seconds": 2.504
+          }
+        ]
+      },
+      {
+        "truth": [
+          {
+            "label": "silence",
+            "start_seconds": 0.0,
+            "end_seconds": 0.328
+          },
+          {
+            "label": "midi_36",
+            "start_seconds": 0.328,
+            "end_seconds": 1.088
+          },
+          {
+            "label": "silence",
+            "start_seconds": 1.088,
+            "end_seconds": 1.248
+          },
+          {
+            "label": "midi_45",
+            "start_seconds": 1.248,
+            "end_seconds": 1.68
+          },
+          {
+            "label": "silence",
+            "start_seconds": 1.68,
+            "end_seconds": 1.944
+          },
+          {
+            "label": "midi_64",
+            "start_seconds": 1.944,
+            "end_seconds": 2.472
+          },
+          {
+            "label": "silence",
+            "start_seconds": 2.472,
+            "end_seconds": 2.504
+          }
+        ],
+        "prediction": [
+          {
+            "label": "silence",
+            "start_seconds": 0.0,
+            "end_seconds": 0.28
+          },
+          {
+            "label": "midi_36",
+            "start_seconds": 0.28,
+            "end_seconds": 1.072
+          },
+          {
+            "label": "silence",
+            "start_seconds": 1.072,
+            "end_seconds": 1.2
+          },
+          {
+            "label": "midi_45",
+            "start_seconds": 1.2,
+            "end_seconds": 1.688
+          },
+          {
+            "label": "silence",
+            "start_seconds": 1.688,
+            "end_seconds": 1.944
+          },
+          {
+            "label": "midi_64",
+            "start_seconds": 1.944,
+            "end_seconds": 2.504
+          }
+        ]
+      },
+      {
+        "truth": [
+          {
+            "label": "silence",
+            "start_seconds": 0.0,
+            "end_seconds": 0.296
+          },
+          {
+            "label": "midi_70",
+            "start_seconds": 0.296,
+            "end_seconds": 0.512
+          },
+          {
+            "label": "silence",
+            "start_seconds": 0.512,
+            "end_seconds": 0.552
+          },
+          {
+            "label": "midi_59",
+            "start_seconds": 0.552,
+            "end_seconds": 1.36
+          },
+          {
+            "label": "silence",
+            "start_seconds": 1.36,
+            "end_seconds": 1.576
+          },
+          {
+            "label": "midi_58",
+            "start_seconds": 1.576,
+            "end_seconds": 2.36
+          },
+          {
+            "label": "silence",
+            "start_seconds": 2.36,
+            "end_seconds": 2.504
+          }
+        ],
+        "prediction": [
+          {
+            "label": "silence",
+            "start_seconds": 0.0,
+            "end_seconds": 0.248
+          },
+          {
+            "label": "midi_70",
+            "start_seconds": 0.248,
+            "end_seconds": 0.504
+          },
+          {
+            "label": "midi_59",
+            "start_seconds": 0.504,
+            "end_seconds": 1.272
+          },
+          {
+            "label": "silence",
+            "start_seconds": 1.272,
+            "end_seconds": 1.52
+          },
+          {
+            "label": "midi_58",
+            "start_seconds": 1.52,
+            "end_seconds": 2.368
+          },
+          {
+            "label": "silence",
+            "start_seconds": 2.368,
+            "end_seconds": 2.504
+          }
+        ]
+      },
+      {
+        "truth": [
+          {
+            "label": "silence",
+            "start_seconds": 0.0,
+            "end_seconds": 0.136
+          },
+          {
+            "label": "midi_61",
+            "start_seconds": 0.136,
+            "end_seconds": 1.088
+          },
+          {
+            "label": "silence",
+            "start_seconds": 1.088,
+            "end_seconds": 1.128
+          },
+          {
+            "label": "midi_38",
+            "start_seconds": 1.128,
+            "end_seconds": 1.576
+          },
+          {
+            "label": "silence",
+            "start_seconds": 1.576,
+            "end_seconds": 1.6
+          },
+          {
+            "label": "midi_69",
+            "start_seconds": 1.6,
+            "end_seconds": 1.944
+          },
+          {
+            "label": "silence",
+            "start_seconds": 1.944,
+            "end_seconds": 1.976
+          },
+          {
+            "label": "midi_66",
+            "start_seconds": 1.976,
+            "end_seconds": 2.168
+          },
+          {
+            "label": "silence",
+            "start_seconds": 2.168,
+            "end_seconds": 2.504
+          }
+        ],
+        "prediction": [
+          {
+            "label": "silence",
+            "start_seconds": 0.0,
+            "end_seconds": 0.152
+          },
+          {
+            "label": "midi_61",
+            "start_seconds": 0.152,
+            "end_seconds": 1.04
+          },
+          {
+            "label": "silence",
+            "start_seconds": 1.04,
+            "end_seconds": 1.08
+          },
+          {
+            "label": "midi_38",
+            "start_seconds": 1.08,
+            "end_seconds": 1.584
+          },
+          {
+            "label": "midi_69",
+            "start_seconds": 1.584,
+            "end_seconds": 1.872
+          },
+          {
+            "label": "silence",
+            "start_seconds": 1.872,
+            "end_seconds": 1.92
+          },
+          {
+            "label": "midi_66",
+            "start_seconds": 1.92,
+            "end_seconds": 2.168
+          },
+          {
+            "label": "silence",
+            "start_seconds": 2.168,
+            "end_seconds": 2.504
+          }
+        ]
+      },
+      {
+        "truth": [
+          {
+            "label": "silence",
+            "start_seconds": 0.0,
+            "end_seconds": 0.24
+          },
+          {
+            "label": "midi_70",
+            "start_seconds": 0.24,
+            "end_seconds": 0.72
+          },
+          {
+            "label": "silence",
+            "start_seconds": 0.72,
+            "end_seconds": 0.808
+          },
+          {
+            "label": "midi_51",
+            "start_seconds": 0.808,
+            "end_seconds": 1.304
+          },
+          {
+            "label": "silence",
+            "start_seconds": 1.304,
+            "end_seconds": 1.336
+          },
+          {
+            "label": "midi_66",
+            "start_seconds": 1.336,
+            "end_seconds": 2.016
+          },
+          {
+            "label": "silence",
+            "start_seconds": 2.016,
+            "end_seconds": 2.248
+          },
+          {
+            "label": "midi_39",
+            "start_seconds": 2.248,
+            "end_seconds": 2.504
+          }
+        ],
+        "prediction": [
+          {
+            "label": "silence",
+            "start_seconds": 0.0,
+            "end_seconds": 0.256
+          },
+          {
+            "label": "midi_70",
+            "start_seconds": 0.256,
+            "end_seconds": 0.64
+          },
+          {
+            "label": "silence",
+            "start_seconds": 0.64,
+            "end_seconds": 0.776
+          },
+          {
+            "label": "midi_51",
+            "start_seconds": 0.776,
+            "end_seconds": 1.232
+          },
+          {
+            "label": "silence",
+            "start_seconds": 1.232,
+            "end_seconds": 1.288
+          },
+          {
+            "label": "midi_66",
+            "start_seconds": 1.288,
+            "end_seconds": 1.776
+          },
+          {
+            "label": "silence",
+            "start_seconds": 1.776,
+            "end_seconds": 2.232
+          },
+          {
+            "label": "midi_39",
+            "start_seconds": 2.232,
+            "end_seconds": 2.48
+          },
+          {
+            "label": "silence",
+            "start_seconds": 2.48,
+            "end_seconds": 2.488
+          },
+          {
+            "label": "midi_39",
+            "start_seconds": 2.488,
+            "end_seconds": 2.504
+          }
+        ]
+      }
+    ]
+  }
+}

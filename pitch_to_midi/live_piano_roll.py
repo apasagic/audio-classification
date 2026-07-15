@@ -9,6 +9,7 @@ import json
 import queue
 import faulthandler
 import logging
+import subprocess
 import sys
 from pathlib import Path
 import threading
@@ -21,7 +22,7 @@ import numpy as np
 import sounddevice as sd
 from tensorflow import keras
 
-from sequence_pitch_pipeline import MIDI_NOTES, SILENCE_CLASS, audio_to_features
+from sequence_pitch_pipeline import HOP_LENGTH, MIDI_NOTES, SILENCE_CLASS, audio_to_features
 
 
 SR = 16_000
@@ -48,12 +49,14 @@ DEFAULT_SESSION_PATH = Path(__file__).with_name("last_piano_roll_session.json")
 DEFAULT_NEURAL_MODEL = Path(__file__).with_name("cqt_gru_best.keras")
 NEURAL_ANALYSIS_SECONDS = 2.5
 NEURAL_UPDATE_SECONDS = 0.20
+NEURAL_MIN_CONFIDENCE = 0.60
+MIC_TEST_SECONDS = 2.0
 
 
 def setup_logging():
     logging.basicConfig(
         filename=LOG_PATH,
-        level=logging.DEBUG,
+        level=logging.INFO,
         format="%(asctime)s %(levelname)s [%(threadName)s] %(message)s",
     )
     sys.stderr = open(LOG_PATH, "a", encoding="utf-8", buffering=1)
@@ -70,6 +73,28 @@ def list_input_devices():
     return devices
 
 
+
+def choose_default_input(devices, default_index=None):
+    """Choose the OS default, then a real microphone instead of loopback/line-in."""
+    if not devices:
+        return "No input devices"
+    if default_index is None:
+        try:
+            default_index = sd.default.device[0]
+        except Exception:
+            default_index = None
+    if default_index is not None and default_index >= 0:
+        match = next((label for label, index in devices if index == default_index), None)
+        if match:
+            return match
+
+    excluded = ("stereo mix", "stereomix", "line input", "eingang")
+    preferred = ("microphone", "mikrofon", " mic", "jabra")
+    for label, _ in devices:
+        lowered = label.lower()
+        if any(token in lowered for token in preferred) and not any(token in lowered for token in excluded):
+            return label
+    return devices[0][0]
 
 def list_output_devices():
     devices = []
@@ -108,9 +133,10 @@ class NeuralPitchDetector:
     def available(self):
         return self.model is not None
 
-    def predict(self, audio, quiet_rms):
+    def predict(self, audio, quiet_rms, current_rms=None):
         rms = float(np.sqrt(np.mean(audio**2)))
-        if rms < quiet_rms or not self.available:
+        gate_rms = rms if current_rms is None else current_rms
+        if gate_rms < quiet_rms or not self.available:
             return None
         features = audio_to_features(audio, "cqt")
         probabilities = self.model.predict(features[None, ...], verbose=0)[0]
@@ -120,7 +146,7 @@ class NeuralPitchDetector:
         frame = probabilities[-1 - lookback]
         class_index = int(np.argmax(frame))
         confidence = float(frame[class_index])
-        if class_index == SILENCE_CLASS:
+        if class_index == SILENCE_CLASS or confidence < NEURAL_MIN_CONFIDENCE:
             return None
         midi_note = int(MIDI_NOTES[class_index - 1])
         return midi_to_hz(midi_note), midi_note, rms, confidence
@@ -151,6 +177,37 @@ def estimate_pitch(audio, quiet_rms):
 
     return hz, midi_note, rms
 
+
+def transcribe_recorded_audio(model, audio, quiet_rms):
+    """Run one complete recording and return gated frame events for the GUI."""
+    audio = np.nan_to_num(np.asarray(audio, dtype=np.float32), nan=0.0, posinf=0.0, neginf=0.0)
+    audio = np.clip(audio, -1.0, 1.0)
+    features = audio_to_features(audio, "cqt")
+    probabilities = model.predict(features[None, ...], verbose=0)[0]
+    classes = probabilities.argmax(axis=-1)
+    confidence = probabilities.max(axis=-1)
+    frame_rms = librosa.feature.rms(
+        y=audio, frame_length=1024, hop_length=HOP_LENGTH, center=True,
+    )[0]
+    frame_count = len(classes)
+    frame_rms = np.pad(frame_rms, (0, max(0, frame_count - len(frame_rms))))[:frame_count]
+
+    events = []
+    accepted = (
+        (classes != SILENCE_CLASS)
+        & (confidence >= NEURAL_MIN_CONFIDENCE)
+        & (frame_rms >= quiet_rms)
+    )
+    for frame in np.flatnonzero(accepted):
+        midi_note = int(MIDI_NOTES[int(classes[frame]) - 1])
+        events.append(
+            (frame * HOP_LENGTH / SR, midi_note, midi_to_hz(midi_note), float(frame_rms[frame]))
+        )
+    return events, {
+        "frames": frame_count,
+        "accepted_frames": int(np.sum(accepted)),
+        "duration_seconds": len(audio) / SR,
+    }
 
 def group_events(events, max_gap, min_note_seconds, pitch_tolerance, min_change_seconds, include_active=True):
     """Turn tiny detector chunks into longer note blocks.
@@ -323,13 +380,13 @@ class PianoRollApp:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("Live Pitch to MIDI - Piano Roll")
-        self.root.geometry(f"{GRID_W + LEFT_W + 24}x{GRID_H + TOP_H + 176}")
+        initial_width = min(GRID_W + LEFT_W + 24, max(720, self.root.winfo_screenwidth() - 80))
+        initial_height = min(GRID_H + TOP_H + 240, max(480, self.root.winfo_screenheight() - 100))
+        self.root.geometry(f"{initial_width}x{initial_height}")
+        self.root.minsize(720, 480)
 
         self.input_devices = list_input_devices()
-        default_device = next(
-            (label for label, index in self.input_devices if index == 5),
-            self.input_devices[0][0] if self.input_devices else "No input devices",
-        )
+        default_device = choose_default_input(self.input_devices)
         self.input_device = tk.StringVar(value=default_device)
         self.selected_input_index = self.device_index_from_label(self.input_devices, default_device)
 
@@ -360,27 +417,42 @@ class PianoRollApp:
 
         self.controls = ttk.Frame(self.root)
         self.controls.pack(fill="x", padx=10, pady=6)
+        self.action_controls = ttk.Frame(self.controls)
+        self.action_controls.pack(fill="x")
+        self.device_controls = ttk.Frame(self.controls)
+        self.device_controls.pack(fill="x", pady=(5, 0))
+        self.display_controls = ttk.Frame(self.controls)
+        self.display_controls.pack(fill="x", pady=(5, 0))
         self.timbre = tk.StringVar(value="Piano")
-        ttk.Button(self.controls, text="Start Recording", command=self.start_recording).pack(side="left", padx=(0, 6))
-        ttk.Button(self.controls, text="Stop Recording", command=self.stop_recording).pack(side="left", padx=6)
-        ttk.Button(self.controls, text="Replay", command=self.replay).pack(side="left", padx=6)
-        ttk.Button(self.controls, text="Reset", command=self.reset).pack(side="left", padx=6)
-        ttk.Button(self.controls, text="Save", command=self.save_session).pack(side="left", padx=6)
-        ttk.Button(self.controls, text="Load", command=self.load_session).pack(side="left", padx=6)
-        ttk.Label(self.controls, text="Detector").pack(side="left", padx=(18, 6))
-        ttk.OptionMenu(self.controls, self.detector_mode, self.detector_mode.get(), "Neural CQT+BiGRU", "YIN fallback").pack(side="left")
-        ttk.Label(self.controls, text="Timbre").pack(side="left", padx=(18, 6))
-        ttk.OptionMenu(self.controls, self.timbre, self.timbre.get(), *TIMBRES).pack(side="left")
-        ttk.Label(self.controls, text="Input").pack(side="left", padx=(18, 6))
+
+        ttk.Button(self.action_controls, text="Start Recording", command=self.start_recording).pack(side="left", padx=(0, 6))
+        ttk.Button(self.action_controls, text="Stop Recording", command=self.stop_recording).pack(side="left", padx=6)
+        ttk.Button(self.action_controls, text="Replay", command=self.replay).pack(side="left", padx=6)
+        ttk.Button(self.action_controls, text="Reset", command=self.reset).pack(side="left", padx=6)
+        ttk.Button(self.action_controls, text="Save", command=self.save_session).pack(side="left", padx=6)
+        ttk.Button(self.action_controls, text="Load", command=self.load_session).pack(side="left", padx=6)
+        ttk.Label(self.action_controls, text="Detector").pack(side="left", padx=(18, 6))
+        ttk.OptionMenu(self.action_controls, self.detector_mode, self.detector_mode.get(), "Neural CQT+BiGRU", "YIN fallback").pack(side="left")
+        ttk.Label(self.action_controls, text="Timbre").pack(side="left", padx=(18, 6))
+        ttk.OptionMenu(self.action_controls, self.timbre, self.timbre.get(), *TIMBRES).pack(side="left")
+
+        ttk.Label(self.device_controls, text="Input").pack(side="left", padx=(0, 6))
         input_labels = [label for label, _ in self.input_devices] or ["No input devices"]
-        ttk.OptionMenu(self.controls, self.input_device, self.input_device.get(), *input_labels, command=self.set_input_device).pack(side="left")
-        ttk.Label(self.controls, text="Output").pack(side="left", padx=(18, 6))
+        self.input_combo = ttk.Combobox(self.device_controls, textvariable=self.input_device, values=input_labels, state="readonly", width=38)
+        self.input_combo.pack(side="left")
+        self.input_combo.bind("<<ComboboxSelected>>", lambda _event: self.set_input_device(self.input_device.get()))
+        ttk.Button(self.device_controls, text="Test Mic", command=self.start_mic_test).pack(side="left", padx=(6, 0))
+        ttk.Label(self.device_controls, text="Output").pack(side="left", padx=(18, 6))
         output_labels = [label for label, _ in self.output_devices] or ["Default output"]
-        ttk.OptionMenu(self.controls, self.output_device, self.output_device.get(), *output_labels, command=self.set_output_device).pack(side="left")
-        ttk.Checkbutton(self.controls, text="Raw pitch chunks", variable=self.show_raw).pack(side="left", padx=(18, 0))
-        ttk.Checkbutton(self.controls, text="Merge connected", variable=self.merge_connected).pack(side="left", padx=(10, 0))
-        ttk.Checkbutton(self.controls, text="Fit replay", variable=self.fit_replay).pack(side="left", padx=(10, 0))
-        self.rms_label = ttk.Label(self.controls, text="RMS: 0.00000")
+        self.output_combo = ttk.Combobox(self.device_controls, textvariable=self.output_device, values=output_labels, state="readonly", width=30)
+        self.output_combo.pack(side="left")
+        self.output_combo.bind("<<ComboboxSelected>>", lambda _event: self.set_output_device(self.output_device.get()))
+        ttk.Button(self.display_controls, text="Load Audio", command=self.load_audio_file).pack(side="left")
+        ttk.Button(self.display_controls, text="Play Source", command=self.play_source).pack(side="left", padx=(6, 12))
+        ttk.Checkbutton(self.display_controls, text="Raw chunks", variable=self.show_raw).pack(side="left", padx=(12, 0))
+        ttk.Checkbutton(self.display_controls, text="Merge connected notes", variable=self.merge_connected).pack(side="left", padx=(8, 0))
+        ttk.Checkbutton(self.display_controls, text="Fit replay", variable=self.fit_replay).pack(side="left", padx=(8, 0))
+        self.rms_label = ttk.Label(self.display_controls, text="RMS: 0.00000")
         self.rms_label.pack(side="left", padx=(18, 0))
 
         self.slider_value_labels = {}
@@ -397,12 +469,18 @@ class PianoRollApp:
         self.canvas.pack(fill="both", expand=True)
 
         self.results = queue.Queue()
+        self.file_results = queue.Queue()
+        self.loaded_audio = None
+        self.loaded_audio_path = None
         self.audio_buffer = np.zeros(int(SR * NEURAL_ANALYSIS_SECONDS), dtype=np.float32)
         self.last_neural_update = 0.0
         self.running = True
         self.mode = "idle"
-        self.status = "Press Start Recording. If no notes appear, try Input 5 or 20 and watch input rms."
+        self.status = f"Checking microphone: {self.input_device.get()}"
         self.latest_rms = 0.0
+        self.mic_test_until = 0.0
+        self.mic_test_peak = 0.0
+        self.mic_test_reported = True
         self.captured_events = []
         self.record_started_at = None
         self.replay_started_at = None
@@ -416,12 +494,14 @@ class PianoRollApp:
         self.worker = threading.Thread(target=self.audio_loop, daemon=True)
         self.worker.start()
         self.root.protocol("WM_DELETE_WINDOW", self.close)
+        self.root.after(500, self.start_mic_test)
         self.draw_loop()
 
     def add_slider(self, label, variable, from_, to, column):
         box = ttk.Frame(self.slider_frame)
-        box.grid(row=0, column=column, sticky="ew", padx=6)
-        self.slider_frame.columnconfigure(column, weight=1)
+        row, grid_column = divmod(column, 3)
+        box.grid(row=row, column=grid_column, sticky="ew", padx=6, pady=2)
+        self.slider_frame.columnconfigure(grid_column, weight=1)
         header = ttk.Frame(box)
         header.pack(fill="x")
         ttk.Label(header, text=label).pack(side="left")
@@ -464,7 +544,16 @@ class PianoRollApp:
         self.audio_buffer[:] = 0
         self.stop_audio()
         logging.info("Input changed to %s index=%s", label, self.selected_input_index)
-        self.status = f"Input set to {label}"
+        self.start_mic_test()
+
+    def start_mic_test(self):
+        if self.selected_input_index is None:
+            self.status = "No microphone input device is available."
+            return
+        self.mic_test_peak = 0.0
+        self.mic_test_reported = False
+        self.mic_test_until = time.time() + MIC_TEST_SECONDS
+        self.status = f"Testing {self.input_device.get()} for {MIC_TEST_SECONDS:.0f}s - speak or tap the mic..."
 
     def set_output_device(self, label):
         self.selected_output_index = self.device_index_from_label(self.output_devices, label)
@@ -566,10 +655,97 @@ class PianoRollApp:
         self.mode = "stopped" if self.captured_events else "idle"
         self.status = f"Loaded {len(self.captured_events)} pitch chunks from {Path(path).name}"
 
+    def load_audio_file(self):
+        if not self.neural_detector.available:
+            self.status = "The neural model is unavailable; cannot transcribe a recording."
+            return
+        preview_dir = Path(__file__).with_name("sequence_previews")
+        path = filedialog.askopenfilename(
+            title="Load recorded or generated audio",
+            initialdir=str(preview_dir if preview_dir.exists() else Path(__file__).parent),
+            filetypes=[
+                ("Audio files", "*.wav *.flac *.ogg *.mp3"),
+                ("WAV files", "*.wav"),
+                ("All files", "*.*"),
+            ],
+        )
+        if not path:
+            return
+        self.mode = "loading"
+        threshold = float(self.quiet_rms.get())
+        self.status = f"Transcribing {Path(path).name} with CQT+BiGRU..."
+        threading.Thread(target=self._load_audio_worker, args=(path, threshold), daemon=True).start()
+
+    def _load_audio_worker(self, path, threshold):
+        try:
+            audio, _ = librosa.load(path, sr=SR, mono=True)
+            worker = Path(__file__).with_name("transcribe_file_worker.py")
+            completed = subprocess.run(
+                [
+                    sys.executable, str(worker),
+                    "--audio", str(path),
+                    "--model", str(DEFAULT_NEURAL_MODEL),
+                    "--quiet-rms", str(threshold),
+                ],
+                capture_output=True, text=True, timeout=120, check=True,
+            )
+            payload = json.loads(completed.stdout)
+            events = [tuple(event) for event in payload["events"]]
+            metrics = payload["metrics"]
+            self.file_results.put((path, audio.astype(np.float32), events, metrics, None))
+        except subprocess.TimeoutExpired:
+            self.file_results.put(
+                (path, None, None, None, "inference timed out after 120 seconds")
+            )
+        except subprocess.CalledProcessError as exc:
+            detail = exc.stderr.strip().splitlines()[-1] if exc.stderr else str(exc)
+            self.file_results.put((path, None, None, None, detail))
+        except Exception as exc:
+            logging.exception("Recorded-file transcription failed")
+            self.file_results.put((path, None, None, None, str(exc)))
+
+    def drain_file_results(self):
+        while not self.file_results.empty():
+            path, audio, events, metrics, error = self.file_results.get_nowait()
+            if error:
+                self.status = f"Audio-file error: {error}"
+                continue
+            self.stop_audio()
+            self.loaded_audio = audio
+            self.loaded_audio_path = path
+            self.captured_events = events
+            self.record_started_at = None
+            self.replay_started_at = None
+            self.mode = "stopped"
+            grouped = len(self.current_notes(include_active=False))
+            self.status = (
+                f"{Path(path).name}: {grouped} notes, {metrics['accepted_frames']}/"
+                f"{metrics['frames']} accepted frames, {metrics['duration_seconds']:.2f}s"
+            )
+
+    def play_source(self):
+        if self.loaded_audio is None:
+            self.status = "Load an audio file first."
+            return
+        self.stop_audio()
+        self.status = f"Playing source: {Path(self.loaded_audio_path).name}"
+        threading.Thread(target=self._play_source_worker, daemon=True).start()
+
+    def _play_source_worker(self):
+        try:
+            with self.audio_lock:
+                sd.play(self.loaded_audio, samplerate=SR, device=self.output_device_index())
+                sd.wait()
+        except Exception as exc:
+            logging.exception("Source playback failed")
+            self.playback_error = str(exc)
+            self.status = f"Source playback error: {exc}"
     def reset(self):
         """Clear the phrase and return to idle without killing the GUI."""
         self.stop_audio()
         self.captured_events.clear()
+        self.loaded_audio = None
+        self.loaded_audio_path = None
         self.audio_buffer[:] = 0
         self.record_started_at = None
         self.replay_started_at = None
@@ -582,6 +758,8 @@ class PianoRollApp:
     def start_recording(self):
         self.stop_audio()
         self.captured_events.clear()
+        self.loaded_audio = None
+        self.loaded_audio_path = None
         self.audio_buffer[:] = 0
         self.record_started_at = time.time()
         self.replay_started_at = None
@@ -626,6 +804,11 @@ class PianoRollApp:
     def audio_loop(self):
         while self.running:
             try:
+                now = time.time()
+                should_capture = self.mode == "recording" or now < self.mic_test_until
+                if not should_capture:
+                    time.sleep(0.05)
+                    continue
                 input_sr = self.input_sample_rate()
                 with self.audio_lock:
                     audio = sd.rec(
@@ -647,6 +830,10 @@ class PianoRollApp:
                     chunk = librosa.resample(chunk, orig_sr=input_sr, target_sr=SR)
 
                 self.latest_rms = float(np.sqrt(np.mean(chunk**2)))
+                if time.time() < self.mic_test_until:
+                    self.mic_test_peak = max(self.mic_test_peak, self.latest_rms)
+                if self.mode != "recording":
+                    continue
                 self.audio_buffer = np.roll(self.audio_buffer, -len(chunk))
                 self.audio_buffer[-len(chunk):] = chunk
                 now = time.time()
@@ -654,7 +841,7 @@ class PianoRollApp:
                     if now - self.last_neural_update < NEURAL_UPDATE_SECONDS:
                         continue
                     self.last_neural_update = now
-                    result = self.neural_detector.predict(self.audio_buffer, self.current_quiet_rms)
+                    result = self.neural_detector.predict(self.audio_buffer, self.current_quiet_rms, self.latest_rms)
                 else:
                     result = estimate_pitch(self.audio_buffer[-int(SR * ANALYSIS_SECONDS):], self.current_quiet_rms)
                 self.results.put((now, result, None))
@@ -703,7 +890,8 @@ class PianoRollApp:
                 error = None
 
             if error is not None:
-                self.status = f"Audio input error: {error}"
+                if self.mode == "recording" or time.time() < self.mic_test_until:
+                    self.status = f"Audio input error: {error}"
                 continue
 
             if self.mode != "recording":
@@ -787,7 +975,19 @@ class PianoRollApp:
         self.current_quiet_rms = self.quiet_rms.get()
         self.current_detector_mode = self.detector_mode.get()
         self.drain_results()
-        self.rms_label.config(text=f"RMS: {self.latest_rms:.5f}")
+        if not self.mic_test_reported and time.time() >= self.mic_test_until:
+            self.mic_test_reported = True
+            if self.mic_test_peak < self.current_quiet_rms:
+                self.status = (
+                    f"No usable mic signal: peak RMS={self.mic_test_peak:.5f}, "
+                    f"gate={self.current_quiet_rms:.5f}. Select another Input and click Test Mic."
+                )
+            else:
+                self.status = (
+                    f"Mic OK: peak RMS={self.mic_test_peak:.5f} on {self.input_device.get()}. "
+                    "Press Start Recording."
+                )
+        self.rms_label.config(text=f"RMS: {self.latest_rms:.5f} / gate {self.current_quiet_rms:.5f}")
         self.canvas.delete("all")
         self.draw_grid()
         self.draw_notes()
